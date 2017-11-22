@@ -1,7 +1,12 @@
 package fc.collimation.helper;
+import java.awt.Dimension;
 import java.awt.Rectangle;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Properties;
 import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
 
 import de.wonderplanets.firecapture.plugin.CamInfo;
 import de.wonderplanets.firecapture.plugin.IFilter;
@@ -11,12 +16,33 @@ import de.wonderplanets.firecapture.plugin.IFilterListener;
 public class DuncanMaskCollimationHelper implements IFilter 
 {
 
-	static double[] CurDirection;
-	static int nCurWidth=0;
-	static int nCurHeight=0;
-	static int[] CurOrig;
-	static int[] CurOutput;
-	static int[] CurAcc;
+	static JFrame j = null;
+	static double[] Direction;
+	static int nWorkingImgWidth=0;
+	static int nWorkingImgHeight=0;
+	static int[] OrigImg;
+	static int[] CurWorkImg1;
+	static int[] CurWorkImg2;
+	static int nDownScaleFactor = 1;
+	static int[][] ResultMatrix;
+	static int[] MaxMatrix;
+	static int[] results; 
+
+	static double[] costable = null;
+	static double[] sintable = null;
+
+	static
+	{
+		costable = new double[360];
+		sintable = new double[360];
+
+		for (int t =0;t<360;t++)
+		{
+			costable[t] = Math.cos(t);
+			sintable[t] = Math.sin(t);
+		}
+	}
+
 
 	@Override
 	public String getName() {
@@ -118,53 +144,104 @@ public class DuncanMaskCollimationHelper implements IFilter
 	public void computeMono(byte[] bytePixels, Rectangle imageSize, CamInfo info) 
 	{
 		// we can further downsample the input image for faster performance
-		// suggest downsample to 1024 * 1024
-		
-		
-		
-		if (imageSize.width!=nCurWidth || imageSize.height!=nCurHeight )
+		// suggest downsample to 800 * 800
+		try
 		{
-			CurDirection = new double[bytePixels.length];
-			CurOrig = new int[bytePixels.length];
-			CurAcc = new int[bytePixels.length];
-			CurOutput = new int[bytePixels.length];
-			nCurWidth = imageSize.width;
-			nCurHeight = imageSize.height;
+			int nTargetWorkingImgDimension = 400;
+
+			int radius_min=140;
+			int radius_max=160;
+
+			int nWorkingRMin = radius_min;
+			int nWorkingRMax = radius_max;
+
+			int numofmatches=3;
+
+
+			if (imageSize.width!=(nWorkingImgWidth*nDownScaleFactor) || imageSize.height!=(nWorkingImgHeight*nDownScaleFactor) )
+			{
+				nDownScaleFactor = Math.min(1,Math.min(imageSize.width, imageSize.height)/nTargetWorkingImgDimension);
+				int nWorkingTotalImgLen = bytePixels.length/nDownScaleFactor; 
+				Direction = new double[nWorkingTotalImgLen];
+				OrigImg = new int[bytePixels.length];
+				CurWorkImg1 = new int[nWorkingTotalImgLen];
+				CurWorkImg2 = new int[nWorkingTotalImgLen];
+				nWorkingImgWidth = imageSize.width/nDownScaleFactor;
+				nWorkingImgHeight = imageSize.height/nDownScaleFactor;
+				nWorkingRMin = radius_min/nDownScaleFactor;
+				nWorkingRMax = Math.max(nWorkingRMin+1,radius_max/nDownScaleFactor);
+				ResultMatrix = new int[nWorkingRMax-nWorkingRMin][nWorkingTotalImgLen];
+				MaxMatrix = new int[nWorkingRMax-nWorkingRMin];
+			}
+
+
+			for (int x=0;x<imageSize.width;x++)
+			{
+				for (int y=0;y<imageSize.height;y++)
+				{
+					OrigImg[y*imageSize.width+x] = bytePixels[y*imageSize.width+x]&0xFF;
+					CurWorkImg1[(y/nDownScaleFactor*imageSize.width)+(x/nDownScaleFactor)] = bytePixels[y*imageSize.width+x]&0xFF;
+				}
+			}
+
+
+			sobel sobelObject = new sobel();
+			sobelObject.init(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight,Direction,CurWorkImg2);
+			sobelObject.process();
+
+			//CurDirection=sobelObject.getDirection();
+
+			nonMaxSuppression nonMaxSuppressionObject = new nonMaxSuppression(); 
+			nonMaxSuppressionObject.init(CurWorkImg2,Direction,nWorkingImgWidth,nWorkingImgHeight, CurWorkImg1);
+			nonMaxSuppressionObject.process();
+
+			hystThresh hystThreshObject = new hystThresh();
+			hystThreshObject.init(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight, 25,50,CurWorkImg2);
+			hystThreshObject.process();
+
+			circleHough circleHoughObject = new circleHough();
+			circleHoughObject.init(CurWorkImg2,nWorkingImgWidth,nWorkingImgHeight, nWorkingRMin, nWorkingRMax, numofmatches,costable,sintable,ResultMatrix,MaxMatrix);
+			results = circleHoughObject.process();
+			// the result from circleHoughObject
+			// [0] = score 
+			// [1] = x coordinate 
+			// [2] = y coordinate
+			// [3] = radius
+
+			for(int i=numofmatches-1; i>=0; i--)
+			{
+				drawCircle(results[i*4], results[i*4+1]*nDownScaleFactor, results[i*4+2]*nDownScaleFactor,results[i*4+3]*nDownScaleFactor,imageSize.width,imageSize.height, OrigImg);
+			}
 		}
-		
-		int lines=1;
-		int radius=30;
+		catch (Exception e)
+		{
+
+			StringWriter sw = new StringWriter();
+			PrintWriter pw = new PrintWriter(sw);
+			e.printStackTrace(pw);
+			String sStackTrace = sw.toString();
+
+			JLabel label = null; 
+			if (j==null)
+			{
+				j = new JFrame();
+				label = new JLabel();
+				j.getContentPane().add("exMessage", label);
+			}
+
+			label=(JLabel) j.getContentPane().getComponent(0);
+			label.setText("<html>Exception:"+e.toString()+"StackTrace="+sStackTrace+"</html>");
+			j.setSize(1020, 420);
+			label.setSize(new Dimension(1000,400));
+			j.setVisible(true);
+		}
 
 		for (int n=0;n<bytePixels.length;n++)
 		{
-			CurOrig[n] = bytePixels[n]&0xFF;
+			bytePixels[n] = (byte)Math.min(255, OrigImg[n]);
 		}
 
-		sobel sobelObject = new sobel();
-		sobelObject.init(CurOrig,imageSize.width,imageSize.height,CurDirection,CurOutput);
-		sobelObject.process2();
-		
-		//CurDirection=sobelObject.getDirection();
 
-		nonMaxSuppression nonMaxSuppressionObject = new nonMaxSuppression(); 
-		nonMaxSuppressionObject.init(CurOutput,CurDirection,imageSize.width,imageSize.height, CurOrig);
-		nonMaxSuppressionObject.process();
-
-		hystThresh hystThreshObject = new hystThresh();
-		hystThreshObject.init(CurOrig,imageSize.width,imageSize.height, 25,50,CurOutput);
-		hystThreshObject.process();
-
-		circleHough circleHoughObject = new circleHough();
-		circleHoughObject.init(CurOutput,imageSize.width,imageSize.height, radius, CurOrig, CurAcc, lines);
-
-		circleHoughObject.process();
-
-		for (int n=0;n<bytePixels.length;n++)
-		{
-			bytePixels[n] = (byte)Math.min(255, CurOrig[n]);
-		}
-
-		
 		//OverlayImage = createImage(new MemoryImageSource(width, height, overlayImage(orig), 0, width));
 
 		//		int rmax = (int)Math.sqrt(imageSize.width*imageSize.width + imageSize.height*imageSize.height);
@@ -176,6 +253,46 @@ public class DuncanMaskCollimationHelper implements IFilter
 
 
 	}
+
+	private void drawCircle(int pix, int xCenter, int yCenter,int radius, int width, int height, int[] output) 
+	{
+		pix = 250;
+		int nPixVal = 0xff000000 | (pix << 16 | pix << 8 | pix);
+		int x, y, r2;
+		r2 = radius * radius;
+
+		if ((((yCenter + radius) * width)+xCenter) < output.length) output[((yCenter + radius) * width)+xCenter] = nPixVal;// setPixel(pix, xCenter, yCenter + radius);
+		if (((yCenter - radius) * width)+xCenter>=0) output[((yCenter - radius) * width)+xCenter] = nPixVal;//setPixel(pix, xCenter, yCenter - radius);
+		if ((yCenter * width)+(xCenter + radius)< output.length) output[(yCenter * width)+(xCenter + radius)] = nPixVal;// setPixel(pix, xCenter + radius, yCenter);
+		if ((yCenter * width)+(xCenter - radius)>=0) output[(yCenter * width)+(xCenter - radius)] = nPixVal;//setPixel(pix, xCenter - radius, yCenter);
+
+		y = radius;
+		x = 1;
+		y = (int) (Math.sqrt(r2 - 1) + 0.5);
+
+		while (x < y) 
+		{
+			if (((yCenter + y) * width)+(xCenter + x)<output.length) output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter + y);
+			if (((yCenter - y) * width)+(xCenter + x)>=0) output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter - y);
+			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter + y);
+			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter - y);
+			if (((yCenter + x) * width)+(xCenter + y)<output.length) output[((yCenter + x) * width)+(xCenter + y)] = nPixVal;//setPixel(pix, xCenter + y, yCenter + x);
+			if (((yCenter - x) * width)+(xCenter + y)>=0) output[((yCenter - x) * width)+(xCenter + y)] = nPixVal;//setPixel(pix, xCenter + y, yCenter - x);
+			if (((yCenter + x) * width)+(xCenter - y)<output.length) output[((yCenter + x) * width)+(xCenter - y)] = nPixVal;//setPixel(pix, xCenter - y, yCenter + x);
+			if (((yCenter - x) * width)+(xCenter - y)>=0) output[((yCenter - x) * width)+(xCenter - y)] = nPixVal;//setPixel(pix, xCenter - y, yCenter - x);
+			x += 1;
+			y = (int) (Math.sqrt(r2 - x*x) + 0.5);
+		}
+
+		if (x == y) 
+		{
+			if (((yCenter + y) * width)+(xCenter + x)<output.length) output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter + y);
+			if (((yCenter - y) * width)+(xCenter + x)>=0) output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter - y);
+			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter + y);
+			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter - y);
+		}
+	}
+
 
 	@Override
 	public void computeColor(int[] rgbPixels, Rectangle imageSize, CamInfo info) {

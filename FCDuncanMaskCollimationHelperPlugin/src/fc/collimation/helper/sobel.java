@@ -10,6 +10,7 @@ public class sobel
 	int width;
 	int height;
 	double[] direction;
+	static int[] bytePix=null;
 
 	public void init(int[] original, int widthIn, int heightIn, double[] direction_in, int[] output_in) 
 	{
@@ -21,9 +22,13 @@ public class sobel
 		input=original;
 		output=output_in;
 		direction = direction_in;
+		if (bytePix==null || bytePix.length!=original.length)
+		{
+			bytePix = new int[original.length];
+		}
 	}
 	
-	public void process2()
+	public void process()
 	{
 		int x=width;
 		int y=height;
@@ -34,7 +39,7 @@ public class sobel
 		
 		// n=j*W + i
 		
-		int[] bytePix = new int[input.length];
+		//int[] bytePix = new int[input.length];
 		
 		for(int i=1;i<x-1;i++)
 		{
@@ -70,76 +75,76 @@ public class sobel
 		//return output;
 	}
 	
-	public int[] process() 
-	{
-		float[] GY = new float[width*height];
-		float[] GX = new float[width*height];
-		
-		int[] total = new int[width*height];
-		//progress=0;
-		int sum=0;
-		int max=0;
-
-		for(int x=(templateSize-1)/2; x<width-(templateSize+1)/2;x++) 
-		{
-			//progress++;
-			for(int y=(templateSize-1)/2; y<height-(templateSize+1)/2;y++) 
-			{
-				sum=0;
-
-				for(int x1=0;x1<templateSize;x1++) 
-				{
-					for(int y1=0;y1<templateSize;y1++) 
-					{
-						int x2 = (x-(templateSize-1)/2+x1);
-						int y2 = (y-(templateSize-1)/2+y1);
-						float value = (input[y2*width+x2] & 0xff) * (template[y1*templateSize+x1]);
-						sum += value;
-					}
-				}
-				
-				GY[y*width+x] = sum;
-				
-				for(int x1=0;x1<templateSize;x1++) 
-				{
-					for(int y1=0;y1<templateSize;y1++) 
-					{
-						int x2 = (x-(templateSize-1)/2+x1);
-						int y2 = (y-(templateSize-1)/2+y1);
-						float value = (input[y2*width+x2] & 0xff) * (template[x1*templateSize+y1]);
-						sum += value;
-					}
-				}
-				GX[y*width+x] = sum;
-
-			}
-		}
-		
-		for(int x=0; x<width;x++) 
-		{
-			for(int y=0; y<height;y++) 
-			{
-				
-				total[y*width+x]=(int)Math.sqrt(GX[y*width+x]*GX[y*width+x]+GY[y*width+x]*GY[y*width+x]);
-				direction[y*width+x] = Math.atan2(GX[y*width+x],GY[y*width+x]);
-				
-				if(max<total[y*width+x])
-					max=total[y*width+x];
-			}
-		}
-		
-		float ratio=(float)max/255;
-		for(int x=0; x<width;x++) 
-		{
-			for(int y=0; y<height;y++) 
-			{
-				sum=(int)(total[y*width+x]/ratio);
-				output[y*width+x] = 0xff000000 | ((int)sum << 16 | (int)sum << 8 | (int)sum);
-			}
-		}
-		//progress=width;
-		
-		return output;
-	}
+//	public int[] process() 
+//	{
+//		float[] GY = new float[width*height];
+//		float[] GX = new float[width*height];
+//		
+//		int[] total = new int[width*height];
+//		//progress=0;
+//		int sum=0;
+//		int max=0;
+//
+//		for(int x=(templateSize-1)/2; x<width-(templateSize+1)/2;x++) 
+//		{
+//			//progress++;
+//			for(int y=(templateSize-1)/2; y<height-(templateSize+1)/2;y++) 
+//			{
+//				sum=0;
+//
+//				for(int x1=0;x1<templateSize;x1++) 
+//				{
+//					for(int y1=0;y1<templateSize;y1++) 
+//					{
+//						int x2 = (x-(templateSize-1)/2+x1);
+//						int y2 = (y-(templateSize-1)/2+y1);
+//						float value = (input[y2*width+x2] & 0xff) * (template[y1*templateSize+x1]);
+//						sum += value;
+//					}
+//				}
+//				
+//				GY[y*width+x] = sum;
+//				
+//				for(int x1=0;x1<templateSize;x1++) 
+//				{
+//					for(int y1=0;y1<templateSize;y1++) 
+//					{
+//						int x2 = (x-(templateSize-1)/2+x1);
+//						int y2 = (y-(templateSize-1)/2+y1);
+//						float value = (input[y2*width+x2] & 0xff) * (template[x1*templateSize+y1]);
+//						sum += value;
+//					}
+//				}
+//				GX[y*width+x] = sum;
+//
+//			}
+//		}
+//		
+//		for(int x=0; x<width;x++) 
+//		{
+//			for(int y=0; y<height;y++) 
+//			{
+//				
+//				total[y*width+x]=(int)Math.sqrt(GX[y*width+x]*GX[y*width+x]+GY[y*width+x]*GY[y*width+x]);
+//				direction[y*width+x] = Math.atan2(GX[y*width+x],GY[y*width+x]);
+//				
+//				if(max<total[y*width+x])
+//					max=total[y*width+x];
+//			}
+//		}
+//		
+//		float ratio=(float)max/255;
+//		for(int x=0; x<width;x++) 
+//		{
+//			for(int y=0; y<height;y++) 
+//			{
+//				sum=(int)(total[y*width+x]/ratio);
+//				output[y*width+x] = 0xff000000 | ((int)sum << 16 | (int)sum << 8 | (int)sum);
+//			}
+//		}
+//		//progress=width;
+//		
+//		return output;
+//	}
 
 }

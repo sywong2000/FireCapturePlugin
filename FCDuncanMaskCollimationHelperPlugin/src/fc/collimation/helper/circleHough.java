@@ -1,51 +1,48 @@
 package fc.collimation.helper;
 
-public class circleHough {
+public class circleHough 
+{
 	int[] input;
-	int[] output;
+	//int[] output;
 	//float[] template={-1,0,1,-2,0,2,-1,0,1};;
 	//double progress;
 	int width;
 	int height;
-	int[] acc;
-	int accSize=30;
+	int[][] acc;
+	static int accSize=-1;
 	int[] results;
-	int r;
-
+	int r_min;
+	int r_max;
+	int[] maxtable;
 	static double[] costable = null;
 	static double[] sintable = null;
 
-	static
+	public void init(int[] inputIn, int widthIn, int heightIn, int radius_min, int radius_max, int NumOfMatches, double[] cos_t_in, double[] sin_t_in, int[][] acc_in, int[] max_t_in) 
 	{
-		costable = new double[360];
-		sintable = new double[360];
-
-		for (int t =0;t<360;t++)
-		{
-			costable[t] = Math.cos(t);
-			sintable[t] = Math.sin(t);
-		}
-	}
-
-	public void init(int[] inputIn, int widthIn, int heightIn, int radius, int[] output_in, int[] acc_in, int lines) 
-	{
-
-		r = radius;
+		r_min = radius_min;
+		r_max = radius_max;
 		width=widthIn;
 		height=heightIn;
-		output = output_in;
 		input=inputIn;
-		acc=acc_in;
-		accSize=lines;	
-		for (int n = 0;n<output.length;n++)
+
+		acc = acc_in;//new int[r_max-r_min+1][width*height];
+
+		accSize=NumOfMatches;
+		
+		if (results==null || results.length!=(accSize*4))
 		{
-			output[n] = input[n];
-			acc[n] = 0;
+			results = new int[accSize*4];
 		}
+
+		maxtable = max_t_in;//new int[r_max-r_min+1];
+
+		costable = cos_t_in;
+		sintable = sin_t_in;
 	}
 
 	// hough transform for lines (polar), returns the accumulator array
-	public void process() 
+
+	public int[] process() 
 	{
 
 		// for polar we need accumulator of 180degress * the longest length in the image
@@ -61,7 +58,7 @@ public class circleHough {
 		//		}
 
 		int x0, y0;
-		int max=0;
+		//int max=0;
 
 		for(int x=0;x<width;x++) 
 		{
@@ -69,16 +66,20 @@ public class circleHough {
 			{
 				if ((input[y*width+x] & 0xff)== 255) 
 				{
-					// speed up the processing by matching each other 4 pixels 
-					for (int theta=0; theta<360; theta=theta+4) 
+					// speed up the processing by matching 24 points (i.e. 360 degress /24 = 15) 
+					for (int theta=0; theta<360; theta=theta+30) 
 					{
 						//t = (theta * 3.14159265) / 180;
-						x0 = (int)Math.round(x - r * costable[theta]);
-						y0 = (int)Math.round(y - r * sintable[theta]);
-						if(x0 < width && x0 > 0 && y0 < height && y0 > 0) 
+						for (int rd = 0;rd<(r_max-r_min);rd++)
 						{
-							acc[x0 + (y0 * width)] += 1;
-							max= (acc[x0 + (y0 * width)]>max)?acc[x0 + (y0 * width)]:max;
+							int radius = r_min+rd;
+							x0 = (int)Math.round(x - radius * costable[theta]);
+							y0 = (int)Math.round(y - radius * sintable[theta]);
+							if(x0 < width && x0 > 0 && y0 < height && y0 > 0) 
+							{
+								acc[rd][x0 + (y0 * width)] += 1;
+								maxtable[rd]= (acc[rd][x0 + (y0 * width)]>maxtable[rd])?acc[rd][x0 + (y0 * width)]:maxtable[rd];
+							}
 						}
 					}
 				}
@@ -104,58 +105,66 @@ public class circleHough {
 		// Normalise all the values
 
 		int value;
-		for(int n=0;n<acc.length;n++) 
+
+		for (int rd=0;rd<(r_max-r_min);rd++)
 		{
-			value = (int)(((double)acc[n]/(double)max)*255.0);
-			acc[n] = 0xff000000 | (value << 16 | value << 8 | value);
+			for(int n=0;n<acc[rd].length;n++) 
+			{
+				value = (int)(((double)acc[rd][n]/(double)maxtable[rd])*255.0);
+				acc[rd][n] = 0xff000000 | (value << 16 | value << 8 | value);
+			}
 		}
 
 		findMaxima();
+
+		return results;
 	}
 
 	private void findMaxima()
 	{
-		results = new int[accSize*3];
-		//int[] output = new int[width*height];
+		for (int n=0;n<results.length;n++) results[n]=0;
+		
 
-		for(int n=0;n<acc.length;n++) 
+		for (int rd=0;rd<(r_max-r_min);rd++)
 		{
-			int value = acc[n] & 0xff;
-			// if its higher than lowest value add it and then sort
-			if (value > results[(accSize-1)*3]) 
+			for(int n=0;n<acc[rd].length;n++) 
 			{
-				int x = n % width;
-				int y = n / width;
-
-				// add to bottom of array
-				results[(accSize-1)*3] = value;
-				results[(accSize-1)*3+1] = x;
-				results[(accSize-1)*3+2] = y;
-
-				// shift up until its in right place
-				int i = (accSize-2)*3;
-				while ((i >= 0) && (results[i+3] > results[i])) 
+				int value = acc[rd][n] & 0xff;
+				// if its higher than lowest value add it and then sort
+				if (value > results[(accSize-1)*3]) 
 				{
-					for(int j=0; j<3; j++) 
+					int x = n % width;
+					int y = n / width;
+					int radius = rd+r_min;
+
+					// add to bottom of array
+					results[(accSize-1)*4] = value;
+					results[(accSize-1)*4+1] = x;
+					results[(accSize-1)*4+2] = y;
+					results[(accSize-1)*4+3] = radius;
+
+					// shift up until its in right place
+					int i = (accSize-2)*4;
+					while ((i >= 0) && (results[i+4] > results[i])) 
 					{
-						int temp = results[i+j];
-						results[i+j] = results[i+3+j];
-						results[i+3+j] = temp;
+						for(int j=0; j<4; j++) 
+						{
+							int temp = results[i+j];
+							results[i+j] = results[i+j+4];
+							results[i+j+4] = temp;
+						}
+						i = i - 4;
+						if (i < 0) break;
 					}
-					i = i - 3;
-					if (i < 0) break;
 				}
 			}
 		}
 
-		//double ratio=(double)(width/2)/accSize;
-		//System.out.println("top "+accSize+" matches:");
-		for(int i=accSize-1; i>=0; i--)
-		{
-			//System.out.println("value: " + results[i*3] + ", r: " + results[i*3+1] + ", theta: " + results[i*3+2]);
-			drawCircle(results[i*3], results[i*3+1], results[i*3+2]);
-			//drawCircleCenter(results[i*3], results[i*3+1], results[i*3+2]);
-		}
+		//		for(int i=accSize-1; i>=0; i--)
+		//		{
+		//			drawCircle(results[i*4], results[i*4+1], results[i*4+2],results[i*4+3]);
+		//		}
+
 		//return output;
 	}
 
@@ -165,54 +174,53 @@ public class circleHough {
 
 	// draw circle at x y
 
-	private void drawCircleCenter(int pix, int xCenter, int yCenter)
-	{
-		pix = 250;
-		int nPixVal = 0xff000000 | (pix << 16 | pix << 8 | pix);
-		output[(yCenter * width)+ xCenter] = nPixVal;
-		//		output[(yCenter * width)+ xCenter+1] = nPixVal;
-		//		output[(yCenter * width)+ xCenter-1] = nPixVal;
-		//		
-		//		output[((yCenter+1) * width)+ xCenter] = nPixVal;
-		//		output[((yCenter-1) * width)+ xCenter] = nPixVal;
-
-	}
-
-	private void drawCircle(int pix, int xCenter, int yCenter) 
-	{
-		pix = 250;
-		int nPixVal = 0xff000000 | (pix << 16 | pix << 8 | pix);
-		int x, y, r2;
-		int radius = r;
-		r2 = r * r;
-		output[((yCenter + radius) * width)+xCenter] = nPixVal;// setPixel(pix, xCenter, yCenter + radius);
-		output[((yCenter - radius) * width)+xCenter] = nPixVal;//setPixel(pix, xCenter, yCenter - radius);
-		output[(yCenter * width)+(xCenter + radius)] = nPixVal;// setPixel(pix, xCenter + radius, yCenter);
-		output[(yCenter * width)+(xCenter - radius)] = nPixVal;//setPixel(pix, xCenter - radius, yCenter);
-
-		y = radius;
-		x = 1;
-		y = (int) (Math.sqrt(r2 - 1) + 0.5);
-		while (x < y) 
-		{
-			output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter + y);
-			output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter - y);
-			output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter + y);
-			output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter - y);
-			output[((yCenter + x) * width)+(xCenter + y)] = nPixVal;//setPixel(pix, xCenter + y, yCenter + x);
-			output[((yCenter - x) * width)+(xCenter + y)] = nPixVal;//setPixel(pix, xCenter + y, yCenter - x);
-			output[((yCenter + x) * width)+(xCenter - y)] = nPixVal;//setPixel(pix, xCenter - y, yCenter + x);
-			output[((yCenter - x) * width)+(xCenter - y)] = nPixVal;//setPixel(pix, xCenter - y, yCenter - x);
-			x += 1;
-			y = (int) (Math.sqrt(r2 - x*x) + 0.5);
-		}
-
-		if (x == y) 
-		{
-			output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter + y);
-			output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter - y);
-			output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter + y);
-			output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter - y);
-		}
-	}
+	//	private void drawCircleCenter(int pix, int xCenter, int yCenter)
+	//	{
+	//		pix = 250;
+	//		int nPixVal = 0xff000000 | (pix << 16 | pix << 8 | pix);
+	//		output[(yCenter * width)+ xCenter] = nPixVal;
+	//		//		output[(yCenter * width)+ xCenter+1] = nPixVal;
+	//		//		output[(yCenter * width)+ xCenter-1] = nPixVal;
+	//		//		
+	//		//		output[((yCenter+1) * width)+ xCenter] = nPixVal;
+	//		//		output[((yCenter-1) * width)+ xCenter] = nPixVal;
+	//
+	//	}
+	//
+	//	private void drawCircle(int pix, int xCenter, int yCenter,int radius) 
+	//	{
+	//		pix = 250;
+	//		int nPixVal = 0xff000000 | (pix << 16 | pix << 8 | pix);
+	//		int x, y, r2;
+	//		r2 = radius * radius;
+	//		output[((yCenter + radius) * width)+xCenter] = nPixVal;// setPixel(pix, xCenter, yCenter + radius);
+	//		output[((yCenter - radius) * width)+xCenter] = nPixVal;//setPixel(pix, xCenter, yCenter - radius);
+	//		output[(yCenter * width)+(xCenter + radius)] = nPixVal;// setPixel(pix, xCenter + radius, yCenter);
+	//		output[(yCenter * width)+(xCenter - radius)] = nPixVal;//setPixel(pix, xCenter - radius, yCenter);
+	//
+	//		y = radius;
+	//		x = 1;
+	//		y = (int) (Math.sqrt(r2 - 1) + 0.5);
+	//		while (x < y) 
+	//		{
+	//			output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter + y);
+	//			output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter - y);
+	//			output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter + y);
+	//			output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter - y);
+	//			output[((yCenter + x) * width)+(xCenter + y)] = nPixVal;//setPixel(pix, xCenter + y, yCenter + x);
+	//			output[((yCenter - x) * width)+(xCenter + y)] = nPixVal;//setPixel(pix, xCenter + y, yCenter - x);
+	//			output[((yCenter + x) * width)+(xCenter - y)] = nPixVal;//setPixel(pix, xCenter - y, yCenter + x);
+	//			output[((yCenter - x) * width)+(xCenter - y)] = nPixVal;//setPixel(pix, xCenter - y, yCenter - x);
+	//			x += 1;
+	//			y = (int) (Math.sqrt(r2 - x*x) + 0.5);
+	//		}
+	//
+	//		if (x == y) 
+	//		{
+	//			output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter + y);
+	//			output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter - y);
+	//			output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter + y);
+	//			output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter - y);
+	//		}
+	//	}
 }
