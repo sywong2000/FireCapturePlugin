@@ -2,9 +2,9 @@ package fc.collimation.helper;
 
 public class nonMaxSuppression 
 {
-	int[] magnitude;
+	byte[] magnitude;
 	double[] direction;
-	int[] output;
+	byte[] output;
 	//float[] template={-1,0,1,-2,0,2,-1,0,1};;
 	//int progress;
 	//int templateSize=3;
@@ -15,26 +15,31 @@ public class nonMaxSuppression
 	final double pi_over_2 = Math.PI / 2;
 
 
-	public void init(int[] magnitudeIn, double[] directionIn, int widthIn, int heightIn, int[] output_in) 
+	public void init(byte[] magnitudeIn, double[] directionIn, int widthIn, int heightIn, byte[] output_in) 
 	{
 		width=widthIn;
 		height=heightIn;
-		//magnitude = new int[width*height];
-		//direction = new double[width*height];
-		//output = new int[width*height];
 		output = output_in;
 		magnitude=magnitudeIn; 
 		direction=directionIn;
 	}
 	
-	public void process() 
+	public void process()
 	{
-		
+		for (int n=0;n<magnitude.length;n++)
+		{
+			output[n] = ((magnitude[n] & 0xFF)> 80)?(byte)255:(byte)0;
+		}
+	}
+	
+	
+	public void process2() 
+	{
 		for(int x=0;x<width;x++) 
 		{
 			for(int y=0;y<height;y++) 
 			{
-				if ((magnitude[y*width+x]&0xff) > 0) 
+				if ((magnitude[y*width+x]) > 0) 
 				{
 					double angle = direction[y*width+x];
 					int Mint = magnitude[y*width+x]&0xff;
@@ -60,15 +65,22 @@ public class nonMaxSuppression
 
 					if ((Mint > M1) && (Mint >= M2)) 
 					{
-						output[y*width+x] = 0xff000000 | (Mint << 16 | Mint << 8 | Mint);
+						// 00000000000000000000000011001000 (the int) Mint int value = (200)
+						// 00000000000000001100100000000000 (the int) Mint << 8
+						// 00000000110010000000000000000000 (the int) Mint << 8
+						// 11111111000000000000000000000000 (the int) 0xff000000
+						// 11111111110010001100100011001000 (the int) after | int value = -3618616
+						// 11111111000000000000000000000000
+						 
+						output[y*width+x] = (byte) 255;//0xff000000 | (Mint << 16 | Mint << 8 | Mint);
 					}
 					else 
 					{
-						output[y*width+x] = 0xff000000;
+						output[y*width+x] = (byte)0;//0xff000000;
 					}
 				} 
 				else 
-					output[y*width+x] = 0xff000000;
+					output[y*width+x] = (byte)0;//0xff000000;
 			}
 		}
 

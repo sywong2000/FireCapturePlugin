@@ -20,12 +20,12 @@ public class DuncanMaskCollimationHelper implements IFilter
 	static double[] Direction;
 	static int nWorkingImgWidth=0;
 	static int nWorkingImgHeight=0;
-	static int[] OrigImg;
-	static int[] CurWorkImg1;
-	static int[] CurWorkImg2;
+	static byte[] OrigImg;
+	static byte[] CurWorkImg1;
+	static byte[] CurWorkImg2;
 	static int nDownScaleFactor = 1;
-	static int[][] ResultMatrix;
-	static int[] MaxMatrix;
+	static byte[][] ResultMatrix;
+	static byte[] MaxMatrix;
 	static int[] results; 
 
 	static double[] costable = null;
@@ -144,13 +144,13 @@ public class DuncanMaskCollimationHelper implements IFilter
 	public void computeMono(byte[] bytePixels, Rectangle imageSize, CamInfo info) 
 	{
 		// we can further downsample the input image for faster performance
-		// suggest downsample to 800 * 800
+		// suggest downsample to 800 * 800 or even smaller values
 		try
 		{
-			int nTargetWorkingImgDimension = 400;
+			int nTargetWorkingImgDimension = 20000000;
 
-			int radius_min=140;
-			int radius_max=160;
+			int radius_min=100;
+			int radius_max=180;
 
 			int nWorkingRMin = radius_min;
 			int nWorkingRMax = radius_max;
@@ -160,18 +160,18 @@ public class DuncanMaskCollimationHelper implements IFilter
 
 			if (imageSize.width!=(nWorkingImgWidth*nDownScaleFactor) || imageSize.height!=(nWorkingImgHeight*nDownScaleFactor) )
 			{
-				nDownScaleFactor = Math.min(1,Math.min(imageSize.width, imageSize.height)/nTargetWorkingImgDimension);
+				nDownScaleFactor = Math.max(1,Math.min(imageSize.width, imageSize.height)/nTargetWorkingImgDimension);
 				int nWorkingTotalImgLen = bytePixels.length/nDownScaleFactor; 
 				Direction = new double[nWorkingTotalImgLen];
-				OrigImg = new int[bytePixels.length];
-				CurWorkImg1 = new int[nWorkingTotalImgLen];
-				CurWorkImg2 = new int[nWorkingTotalImgLen];
+				OrigImg = new byte[bytePixels.length];
+				CurWorkImg1 = new byte[nWorkingTotalImgLen];
+				CurWorkImg2 = new byte[nWorkingTotalImgLen];
 				nWorkingImgWidth = imageSize.width/nDownScaleFactor;
 				nWorkingImgHeight = imageSize.height/nDownScaleFactor;
 				nWorkingRMin = radius_min/nDownScaleFactor;
 				nWorkingRMax = Math.max(nWorkingRMin+1,radius_max/nDownScaleFactor);
-				ResultMatrix = new int[nWorkingRMax-nWorkingRMin][nWorkingTotalImgLen];
-				MaxMatrix = new int[nWorkingRMax-nWorkingRMin];
+				ResultMatrix = new byte[nWorkingRMax-nWorkingRMin][nWorkingTotalImgLen];
+				MaxMatrix = new byte[nWorkingRMax-nWorkingRMin];
 			}
 
 
@@ -179,8 +179,8 @@ public class DuncanMaskCollimationHelper implements IFilter
 			{
 				for (int y=0;y<imageSize.height;y++)
 				{
-					OrigImg[y*imageSize.width+x] = bytePixels[y*imageSize.width+x]&0xFF;
-					CurWorkImg1[(y/nDownScaleFactor*imageSize.width)+(x/nDownScaleFactor)] = bytePixels[y*imageSize.width+x]&0xFF;
+					//OrigImg[y*imageSize.width+x] = bytePixels[y*imageSize.width+x];
+					CurWorkImg1[(y/nDownScaleFactor*imageSize.width)+(x/nDownScaleFactor)] = bytePixels[y*imageSize.width+x];
 				}
 			}
 
@@ -189,29 +189,35 @@ public class DuncanMaskCollimationHelper implements IFilter
 			sobelObject.init(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight,Direction,CurWorkImg2);
 			sobelObject.process();
 
-			//CurDirection=sobelObject.getDirection();
 
 			nonMaxSuppression nonMaxSuppressionObject = new nonMaxSuppression(); 
 			nonMaxSuppressionObject.init(CurWorkImg2,Direction,nWorkingImgWidth,nWorkingImgHeight, CurWorkImg1);
 			nonMaxSuppressionObject.process();
 
+						
 			hystThresh hystThreshObject = new hystThresh();
-			hystThreshObject.init(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight, 25,50,CurWorkImg2);
+			hystThreshObject.init(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight, (byte)25,(byte)50,CurWorkImg2);
 			hystThreshObject.process();
-
-			circleHough circleHoughObject = new circleHough();
-			circleHoughObject.init(CurWorkImg2,nWorkingImgWidth,nWorkingImgHeight, nWorkingRMin, nWorkingRMax, numofmatches,costable,sintable,ResultMatrix,MaxMatrix);
-			results = circleHoughObject.process();
-			// the result from circleHoughObject
-			// [0] = score 
-			// [1] = x coordinate 
-			// [2] = y coordinate
-			// [3] = radius
-
-			for(int i=numofmatches-1; i>=0; i--)
+			
+			for (int n=0;n<bytePixels.length;n++)
 			{
-				drawCircle(results[i*4], results[i*4+1]*nDownScaleFactor, results[i*4+2]*nDownScaleFactor,results[i*4+3]*nDownScaleFactor,imageSize.width,imageSize.height, OrigImg);
+				OrigImg[n] = CurWorkImg2[n];
 			}
+
+//
+//			circleHough circleHoughObject = new circleHough();
+//			circleHoughObject.init(CurWorkImg2,nWorkingImgWidth,nWorkingImgHeight, nWorkingRMin, nWorkingRMax, numofmatches,costable,sintable,ResultMatrix,MaxMatrix);
+//			results = circleHoughObject.process();
+//			// the result from circleHoughObject
+//			// [0] = score 
+//			// [1] = x coordinate 
+//			// [2] = y coordinate
+//			// [3] = radius
+//
+//			for(int i=numofmatches-1; i>=0; i--)
+//			{
+//				drawCircle(results[i*4], results[i*4+1]*nDownScaleFactor, results[i*4+2]*nDownScaleFactor,results[i*4+3]*nDownScaleFactor,imageSize.width,imageSize.height, OrigImg);
+//			}
 		}
 		catch (Exception e)
 		{
@@ -254,10 +260,10 @@ public class DuncanMaskCollimationHelper implements IFilter
 
 	}
 
-	private void drawCircle(int pix, int xCenter, int yCenter,int radius, int width, int height, int[] output) 
+	private void drawCircle(int pix, int xCenter, int yCenter,int radius, int width, int height, byte[] output) 
 	{
-		pix = 250;
-		int nPixVal = 0xff000000 | (pix << 16 | pix << 8 | pix);
+		//pix = 250;
+		byte nPixVal = (byte)250;
 		int x, y, r2;
 		r2 = radius * radius;
 

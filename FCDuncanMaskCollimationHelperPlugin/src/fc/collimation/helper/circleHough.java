@@ -2,22 +2,22 @@ package fc.collimation.helper;
 
 public class circleHough 
 {
-	int[] input;
+	byte[] input;
 	//int[] output;
 	//float[] template={-1,0,1,-2,0,2,-1,0,1};;
 	//double progress;
 	int width;
 	int height;
-	int[][] acc;
+	byte[][] acc;
 	static int accSize=-1;
 	int[] results;
 	int r_min;
 	int r_max;
-	int[] maxtable;
+	byte[] maxtable;
 	static double[] costable = null;
 	static double[] sintable = null;
 
-	public void init(int[] inputIn, int widthIn, int heightIn, int radius_min, int radius_max, int NumOfMatches, double[] cos_t_in, double[] sin_t_in, int[][] acc_in, int[] max_t_in) 
+	public void init(byte[] inputIn, int widthIn, int heightIn, int radius_min, int radius_max, int NumOfMatches, double[] cos_t_in, double[] sin_t_in, byte[][] acc_in, byte[] max_t_in) 
 	{
 		r_min = radius_min;
 		r_max = radius_max;
@@ -64,7 +64,7 @@ public class circleHough
 		{
 			for(int y=0;y<height;y++) 
 			{
-				if ((input[y*width+x] & 0xff)== 255) 
+				if ((input[y*width+x])== 255) 
 				{
 					// speed up the processing by matching 24 points (i.e. 360 degress /24 = 15) 
 					for (int theta=0; theta<360; theta=theta+30) 
@@ -104,14 +104,14 @@ public class circleHough
 		//System.out.println("Max :" + max);
 		// Normalise all the values
 
-		int value;
+		byte value;
 
 		for (int rd=0;rd<(r_max-r_min);rd++)
 		{
 			for(int n=0;n<acc[rd].length;n++) 
 			{
-				value = (int)(((double)acc[rd][n]/(double)maxtable[rd])*255.0);
-				acc[rd][n] = 0xff000000 | (value << 16 | value << 8 | value);
+				value = (byte)(((double)acc[rd][n]/(double)maxtable[rd])*255.0);
+				acc[rd][n] = value;//0xff000000 | (value << 16 | value << 8 | value);
 			}
 		}
 
@@ -129,7 +129,7 @@ public class circleHough
 		{
 			for(int n=0;n<acc[rd].length;n++) 
 			{
-				int value = acc[rd][n] & 0xff;
+				byte value = acc[rd][n];// & 0xff;
 				// if its higher than lowest value add it and then sort
 				if (value > results[(accSize-1)*3]) 
 				{
@@ -138,7 +138,7 @@ public class circleHough
 					int radius = rd+r_min;
 
 					// add to bottom of array
-					results[(accSize-1)*4] = value;
+					results[(accSize-1)*4] = value&0xff;
 					results[(accSize-1)*4+1] = x;
 					results[(accSize-1)*4+2] = y;
 					results[(accSize-1)*4+3] = radius;

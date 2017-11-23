@@ -2,17 +2,17 @@ package fc.collimation.helper;
 
 public class sobel 
 {
-	int[] input;
-	int[] output;
+	byte[] input;
+	byte[] output;
 	float[] template={-1,0,1,-2,0,2,-1,0,1};;
 	//int progress;
 	int templateSize=3;
 	int width;
 	int height;
 	double[] direction;
-	static int[] bytePix=null;
+	static byte[] bytePix=null;
 
-	public void init(int[] original, int widthIn, int heightIn, double[] direction_in, int[] output_in) 
+	public void init(byte[] original, int widthIn, int heightIn, double[] direction_in, byte[] output_in) 
 	{
 		width=widthIn;
 		height=heightIn;
@@ -24,7 +24,7 @@ public class sobel
 		direction = direction_in;
 		if (bytePix==null || bytePix.length!=original.length)
 		{
-			bytePix = new int[original.length];
+			bytePix = new byte[original.length];
 		}
 	}
 	
@@ -32,7 +32,7 @@ public class sobel
 	{
 		int x=width;
 		int y=height;
-		int nMax = -1;
+		byte nMax = 0;
 
 		// i is the x coordinate, 1 to width (x)
 		// j is the y coordinate, 1 to height (y)
@@ -45,33 +45,33 @@ public class sobel
 		{
 			for(int j=1;j<y-1;j++)
 			{
-				int val00 = input[((j-1)*x)+(i-1)];//&0xFF;// image.getRGB(i-1,j-1);
-				int val01 = input[(j*x)+(i-1)];//&0xFF; //image.getRGB(i-1,j);
-				int val02 = input[((j+1)*x)+(i-1)];//&0xFF;//image.getRGB(i-1,j+1);
+				byte val00 = input[((j-1)*x)+(i-1)];//&0xFF;// image.getRGB(i-1,j-1);
+				byte val01 = input[(j*x)+(i-1)];//&0xFF; //image.getRGB(i-1,j);
+				byte val02 = input[((j+1)*x)+(i-1)];//&0xFF;//image.getRGB(i-1,j+1);
 
-				int val10 = input[((j-1)*x)+i];//&0xFF; //image.getRGB(i,j-1);
-				int val11 = input[j*x+i];//&0xFF;//image.getRGB(i,j);
-				int val12 = input[((j+1)*x)+i];//&0xFF;// image.getRGB(i,j+1);
+				byte val10 = input[((j-1)*x)+i];//&0xFF; //image.getRGB(i,j-1);
+				byte val11 = input[j*x+i];//&0xFF;//image.getRGB(i,j);
+				byte val12 = input[((j+1)*x)+i];//&0xFF;// image.getRGB(i,j+1);
 
-				int val20 = input[((j-1)*x)+(i+1)];//&0xFF; //image.getRGB(i+1,j-1);
-				int val21 = input[(j*x)+(i+1)];//&0xFF; //image.getRGB(i+1,j);
-				int val22 = input[((j+1)*x)+(i+1)];//&0xFF; //image.getRGB(i+1,j+1);
+				byte val20 = input[((j-1)*x)+(i+1)];//&0xFF; //image.getRGB(i+1,j-1);
+				byte val21 = input[(j*x)+(i+1)];//&0xFF; //image.getRGB(i+1,j);
+				byte val22 = input[((j+1)*x)+(i+1)];//&0xFF; //image.getRGB(i+1,j+1);
 
 				int gx=(((-1*val00)+(0*val01)+(1*val02))+((-2*val10)+(0*val11)+(2*val12))+((-1*val20)+(0*val21)+(1*val22)));
 				int gy=(((-1*val00)+(-2*val01)+(-1*val02))+((0*val10)+(0*val11)+(0*val12))+((1*val20)+(2*val21)+(1*val22)));
 
-				double gval= Math.sqrt((gx*gx)+(gy*gy));
+				byte gval= (byte)Math.min(255,(Math.sqrt((gx*gx)+(gy*gy))));
 				direction[j*x + i] = Icecore.atan2(gx,gy);
 							
-				nMax = (nMax>gval)?nMax:(int)gval;
-				bytePix[j*x + i] = (int)gval;
+				nMax = nMax>gval?nMax:gval;
+				output[j*x + i] = gval;
 			}
 		}
 		
-		for (int n=0;n<bytePix.length;n++)
-		{
-			output[n] = (byte)Math.min(255,(bytePix[n] * 255/nMax));
-		}
+//		for (int n=0;n<bytePix.length;n++)
+//		{
+//			output[n] = bytePix[n];//(byte)Math.min(255,(bytePix[n]));// * 255/nMax
+//		}
 		//return output;
 	}
 	

@@ -3,18 +3,18 @@ package fc.collimation.helper;
 public class hystThresh 
 {
 
-	int[] input;
-	int[] output;
+	byte[] input;
+	byte[] output;
 	//int progress;
 	int width;
 	int height;
-	static int lower;
-	static int upper;
+	static byte lower;
+	static byte upper;
 	int nHystStackSize = 0;
 	int nMaxLen ;
 
 
-	public void init(int[] inputIn, int widthIn, int heightIn, int lowerIn, int upperIn, int[] output_in) {
+	public void init(byte[] inputIn, int widthIn, int heightIn, byte lowerIn, byte upperIn, byte[] output_in) {
 		width=widthIn;
 		height=heightIn;
 		//input = new int[width*height];
@@ -33,10 +33,10 @@ public class hystThresh
 		{
 			for(int y=0;y<height;y++) 
 			{
-				int value = (input[y*width+x]) & 0xff;
+				byte value = (input[y*width+x]);
 				if (value >= upper) 
 				{
-					input[y*width+x] = 0xffffffff;
+					input[y*width+x] = (byte) 255;//0xffffffff;
 					hystConnect(x, y);
 				}
 			}
@@ -44,13 +44,13 @@ public class hystThresh
 
 		for (int n=0;n<input.length;n++)
 		{
-			if (input[n] == 0xffffffff)
+			if (input[n] == 255)//0xffffffff)
 			{
-				output[n] = 0xffffffff;
+				output[n] = (byte) 255;//0xffffffff;
 			}
 			else
 			{
-				output[n] = 0xff000000;
+				output[n] = 0;//0xff000000;
 			}
 		}
 	}
@@ -66,17 +66,17 @@ public class hystThresh
 			{
 				if ((x1 < width) & (y1 < height) & (x1 >= 0) & (y1 >= 0) & (x1 != x) & (y1 != y)) 
 				{
-					value = (input[y1*width+x1])  & 0xff;
+					value = (input[y1*width+x1]);//  & 0xff;
 					if (value != 255) 
 					{
 						if (value >= lower) 
 						{
-							input[y1*width+x1] = 0xffffffff;
+							input[y1*width+x1] = (byte) 255;
 							hystConnect(x1, y1);
 						} 
 						else 
 						{
-							input[y1*width+x1] = 0xff000000;
+							input[y1*width+x1] = 0;//0xff000000;
 						}
 					}
 				}
