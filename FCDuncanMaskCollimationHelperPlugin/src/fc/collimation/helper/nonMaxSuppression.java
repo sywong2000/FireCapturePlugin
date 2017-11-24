@@ -23,16 +23,33 @@ public class nonMaxSuppression
 		magnitude=magnitudeIn; 
 		direction=directionIn;
 	}
-	
+
 	public void process()
 	{
-		for (int n=0;n<magnitude.length;n++)
+		// https://rosettacode.org/wiki/Canny_edge_detector#J
+		for(int y=0;y<height;y++) 
 		{
-			output[n] = ((magnitude[n] & 0xFF)> 80)?(byte)255:(byte)0;
+			for(int x=0;x<width;x++) 
+			{
+				int nCenter = y*width + x;
+				byte mC = magnitude[nCenter]; 
+				int nN = nCenter - width;
+				int nS = nCenter + width;
+				int nW =  nCenter-1; // should be n_c -1 not +1
+				int nE = nCenter+1;
+				int nNW = nCenter - width-1;
+				int nNE = nCenter - width+1;
+				int nSW = nCenter + width-1;
+				int nSE = nCenter + width+1;
+				
+				float ndir = (float)((direction[y*width+x] + Math.PI)%Math.PI)/Math.PI * 8;
+//				if (((ndir <=1 || ndir >7) && mC > magnitude[nE] && mC > magnitude[nW]) ||
+//						((ndir >1 || ndir <=3) && mC > magnitude[nNW] && mC > magnitude[nSE]) ||
+			}
 		}
 	}
-	
-	
+
+
 	public void process2() 
 	{
 		for(int x=0;x<width;x++) 
@@ -46,7 +63,7 @@ public class nonMaxSuppression
 
 					// angle wants to be the normal so add pi/2
 					angle += pi_over_2;
-					
+
 					int x1 = (int)Math.ceil((Riven.cos((float) (angle + pi_over_8)) * roottwo) - 0.5);
 					int y1 = (int)Math.ceil((-Riven.sin((float) (angle + pi_over_8)) * roottwo) - 0.5);
 					int x2 = (int)Math.ceil((Riven.cos((float) (angle - pi_over_8)) * roottwo) - 0.5);
@@ -71,7 +88,7 @@ public class nonMaxSuppression
 						// 11111111000000000000000000000000 (the int) 0xff000000
 						// 11111111110010001100100011001000 (the int) after | int value = -3618616
 						// 11111111000000000000000000000000
-						 
+
 						output[y*width+x] = (byte) 255;//0xff000000 | (Mint << 16 | Mint << 8 | Mint);
 					}
 					else 
