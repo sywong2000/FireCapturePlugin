@@ -24,8 +24,8 @@ public class DuncanMaskCollimationHelper implements IFilter
 	static byte[] CurWorkImg1;
 	static byte[] CurWorkImg2;
 	static int nDownScaleFactor = 1;
-	static byte[][] ResultMatrix;
-	static byte[] MaxMatrix;
+	static int[][] ResultMatrix;
+	static int[] MaxMatrix;
 	static int[] results; 
 
 	static double[] costable = null;
@@ -157,11 +157,12 @@ public class DuncanMaskCollimationHelper implements IFilter
 
 			int numofmatches=3;
 
-
+			int nWorkingTotalImgLen = bytePixels.length;
 			if (imageSize.width!=(nWorkingImgWidth*nDownScaleFactor) || imageSize.height!=(nWorkingImgHeight*nDownScaleFactor) )
 			{
 				nDownScaleFactor = Math.max(1,Math.min(imageSize.width, imageSize.height)/nTargetWorkingImgDimension);
-				int nWorkingTotalImgLen = bytePixels.length/nDownScaleFactor; 
+				nWorkingTotalImgLen = bytePixels.length/nDownScaleFactor;
+				
 				Direction = new double[nWorkingTotalImgLen];
 				OrigImg = new byte[bytePixels.length];
 				CurWorkImg1 = new byte[nWorkingTotalImgLen];
@@ -170,10 +171,10 @@ public class DuncanMaskCollimationHelper implements IFilter
 				nWorkingImgHeight = imageSize.height/nDownScaleFactor;
 				nWorkingRMin = radius_min/nDownScaleFactor;
 				nWorkingRMax = Math.max(nWorkingRMin+1,radius_max/nDownScaleFactor);
-				ResultMatrix = new byte[nWorkingRMax-nWorkingRMin][nWorkingTotalImgLen];
-				MaxMatrix = new byte[nWorkingRMax-nWorkingRMin];
 			}
 
+			ResultMatrix = new int[nWorkingRMax-nWorkingRMin][nWorkingTotalImgLen];
+			MaxMatrix = new int[nWorkingRMax-nWorkingRMin];
 
 			for (int x=0;x<imageSize.width;x++)
 			{
@@ -184,40 +185,51 @@ public class DuncanMaskCollimationHelper implements IFilter
 				}
 			}
 
+//			gaussianFilter gaussianObject = new gaussianFilter();
+//			gaussianObject.init(CurWorkImg1, CurWorkImg2, 3,5,nWorkingImgWidth, nWorkingImgHeight);
+//			gaussianObject.generateTemplate();
+//			gaussianObject.process();
+			
 
+			
 			sobel sobelObject = new sobel();
 			sobelObject.init(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight,Direction,CurWorkImg2);
 			sobelObject.process();
-
+			
 
 			nonMaxSuppression nonMaxSuppressionObject = new nonMaxSuppression(); 
 			nonMaxSuppressionObject.init(CurWorkImg2,Direction,nWorkingImgWidth,nWorkingImgHeight, CurWorkImg1);
-			nonMaxSuppressionObject.process();
+			nonMaxSuppressionObject.process3();
 
-						
+
 			hystThresh hystThreshObject = new hystThresh();
-			hystThreshObject.init(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight, (byte)25,(byte)50,CurWorkImg2);
+			hystThreshObject.init(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight, (byte)10,(byte)80,CurWorkImg2);
 			hystThreshObject.process();
-			
+
 			for (int n=0;n<bytePixels.length;n++)
 			{
 				OrigImg[n] = CurWorkImg2[n];
 			}
 
+			circleHough circleHoughObject = new circleHough();
+			circleHoughObject.init(CurWorkImg2,nWorkingImgWidth,nWorkingImgHeight, nWorkingRMin, nWorkingRMax, numofmatches,costable,sintable,ResultMatrix,MaxMatrix);
+			results = circleHoughObject.process();
+			
+			// the result from circleHoughObject
+			// [0] = score 
+			// [1] = x coordinate 
+			// [2] = y coordinate
+			// [3] = radius
 //
-//			circleHough circleHoughObject = new circleHough();
-//			circleHoughObject.init(CurWorkImg2,nWorkingImgWidth,nWorkingImgHeight, nWorkingRMin, nWorkingRMax, numofmatches,costable,sintable,ResultMatrix,MaxMatrix);
-//			results = circleHoughObject.process();
-//			// the result from circleHoughObject
-//			// [0] = score 
-//			// [1] = x coordinate 
-//			// [2] = y coordinate
-//			// [3] = radius
-//
-//			for(int i=numofmatches-1; i>=0; i--)
+//			for (int n=0;n<bytePixels.length;n++)
 //			{
-//				drawCircle(results[i*4], results[i*4+1]*nDownScaleFactor, results[i*4+2]*nDownScaleFactor,results[i*4+3]*nDownScaleFactor,imageSize.width,imageSize.height, OrigImg);
+//				OrigImg[n] = CurWorkImg1[n];
 //			}
+
+			for(int i=numofmatches-1; i>=0; i--)
+			{
+				drawCircle(results[i*4], results[i*4+1]*nDownScaleFactor, results[i*4+2]*nDownScaleFactor,results[i*4+3]*nDownScaleFactor,imageSize.width,imageSize.height, OrigImg);
+			}
 		}
 		catch (Exception e)
 		{

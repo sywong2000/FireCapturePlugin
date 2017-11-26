@@ -44,13 +44,13 @@ public class hystThresh
 
 		for (int n=0;n<input.length;n++)
 		{
-			if (input[n] == 255)//0xffffffff)
+			if (input[n] == (byte)255)//0xffffffff)
 			{
 				output[n] = (byte) 255;//0xffffffff;
 			}
 			else
 			{
-				output[n] = 0;//0xff000000;
+				output[n] = (byte)0;//0xff000000;
 			}
 		}
 	}

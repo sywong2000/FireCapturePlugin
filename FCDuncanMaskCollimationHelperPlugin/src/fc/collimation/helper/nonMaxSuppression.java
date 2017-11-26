@@ -26,6 +26,22 @@ public class nonMaxSuppression
 
 	public void process()
 	{
+		
+		for (int n=0;n<magnitude.length;n++)
+		{
+			if (magnitude[n]< (byte) 180)
+			{
+				output[n] = (byte)0;
+			}
+			else
+			{
+				output[n] = magnitude[n];
+			}
+		}
+	}
+
+	public void process3()
+	{
 		// https://rosettacode.org/wiki/Canny_edge_detector#J
 		for(int y=0;y<height;y++) 
 		{
@@ -42,9 +58,40 @@ public class nonMaxSuppression
 				int nSW = nCenter + width-1;
 				int nSE = nCenter + width+1;
 				
-				float ndir = (float)((direction[y*width+x] + Math.PI)%Math.PI)/Math.PI * 8;
-//				if (((ndir <=1 || ndir >7) && mC > magnitude[nE] && mC > magnitude[nW]) ||
-//						((ndir >1 || ndir <=3) && mC > magnitude[nNW] && mC > magnitude[nSE]) ||
+				// 
+				// 0 deg is 0
+				// 180 deg is Math.PI
+				// direction + PI to fall into below ranges. Direction is atan2(y,x)
+				// E is between 7PI/8 to 9PI/8 : 7-9
+				// NE is between 9PI/8 to 11PI/8: 9-11
+				// N is between 11PI/8 to 13PI/8: 11-13
+				// NW is between 13PI/8 to 15PI/8: 13-15
+				// W is between 15PI/8 to 16PI/8 and 0PI/8 to 1PI/8: 15-16 & 0-1
+				// SW is between PI/8 to 3PI/8: 1-3
+				// S is between 3PI/8 to 5PI/8: 3-5
+				// SE is between 5PI/8 to 7PI/8: 5-7
+				
+				float dir = (float) ((direction[y*width+x] + Math.PI)/Math.PI)*8;
+				
+				
+				try 
+				{
+				if ((((dir >7 && dir <=9)||(dir >15 || dir <=1)) && mC > magnitude[nE] && mC > magnitude[nW]) || // E or W
+						(((dir >9 && dir <=11)||(dir >1 && dir <=3)) && mC > magnitude[nNE] && mC > magnitude[nSW]) || // NE or SW
+		                (((dir > 11 && dir <= 13)||(dir > 3 && dir <= 5)) && mC > magnitude[nN] && mC > magnitude[nS]) || // N or S
+		                (((dir > 13 && dir <= 15)||(dir > 5 && dir <= 7)) && mC > magnitude[nNW] && mC > magnitude[nSE]))   // NW or SE
+				{
+					output[nCenter] = mC;
+				}
+				else
+				{
+					output[nCenter] = (byte)0;
+				}
+				}
+				catch (Exception e)
+				{
+					output[nCenter] = (byte)0;	
+				}
 			}
 		}
 	}

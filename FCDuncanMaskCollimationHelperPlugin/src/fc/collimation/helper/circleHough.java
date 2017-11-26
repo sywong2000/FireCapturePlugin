@@ -8,16 +8,16 @@ public class circleHough
 	//double progress;
 	int width;
 	int height;
-	byte[][] acc;
+	int[][] acc;
 	static int accSize=-1;
 	int[] results;
 	int r_min;
 	int r_max;
-	byte[] maxtable;
+	int[] maxtable;
 	static double[] costable = null;
 	static double[] sintable = null;
 
-	public void init(byte[] inputIn, int widthIn, int heightIn, int radius_min, int radius_max, int NumOfMatches, double[] cos_t_in, double[] sin_t_in, byte[][] acc_in, byte[] max_t_in) 
+	public void init(byte[] inputIn, int widthIn, int heightIn, int radius_min, int radius_max, int NumOfMatches, double[] cos_t_in, double[] sin_t_in, int[][] acc_in, int[] max_t_in) 
 	{
 		r_min = radius_min;
 		r_max = radius_max;
@@ -67,7 +67,7 @@ public class circleHough
 				if ((input[y*width+x])== 255) 
 				{
 					// speed up the processing by matching 24 points (i.e. 360 degress /24 = 15) 
-					for (int theta=0; theta<360; theta=theta+30) 
+					for (int theta=0; theta<360; theta=theta++) 
 					{
 						//t = (theta * 3.14159265) / 180;
 						for (int rd = 0;rd<(r_max-r_min);rd++)
@@ -104,16 +104,16 @@ public class circleHough
 		//System.out.println("Max :" + max);
 		// Normalise all the values
 
-		byte value;
-
-		for (int rd=0;rd<(r_max-r_min);rd++)
-		{
-			for(int n=0;n<acc[rd].length;n++) 
-			{
-				value = (byte)(((double)acc[rd][n]/(double)maxtable[rd])*255.0);
-				acc[rd][n] = value;//0xff000000 | (value << 16 | value << 8 | value);
-			}
-		}
+//		byte value;
+//
+//		for (int rd=0;rd<(r_max-r_min);rd++)
+//		{
+//			for(int n=0;n<acc[rd].length;n++) 
+//			{
+//				value = (byte)(((double)acc[rd][n]/(double)maxtable[rd])*255.0);
+//				acc[rd][n] = value;//0xff000000 | (value << 16 | value << 8 | value);
+//			}
+//		}
 
 		findMaxima();
 
@@ -129,16 +129,16 @@ public class circleHough
 		{
 			for(int n=0;n<acc[rd].length;n++) 
 			{
-				byte value = acc[rd][n];// & 0xff;
+				int value = acc[rd][n];// & 0xff;
 				// if its higher than lowest value add it and then sort
-				if (value > results[(accSize-1)*3]) 
+				if (value > results[(accSize-1)*4]) 
 				{
 					int x = n % width;
 					int y = n / width;
 					int radius = rd+r_min;
 
 					// add to bottom of array
-					results[(accSize-1)*4] = value&0xff;
+					results[(accSize-1)*4] = value;
 					results[(accSize-1)*4+1] = x;
 					results[(accSize-1)*4+2] = y;
 					results[(accSize-1)*4+3] = radius;
