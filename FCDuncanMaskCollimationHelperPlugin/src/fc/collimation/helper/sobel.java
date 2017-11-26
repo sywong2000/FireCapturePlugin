@@ -45,23 +45,31 @@ public class sobel
 		{
 			for(int j=1;j<y-1;j++)
 			{
-				byte val00 = input[((j-1)*x)+(i-1)];//&0xFF;// image.getRGB(i-1,j-1);
-				byte val01 = input[(j*x)+(i-1)];//&0xFF; //image.getRGB(i-1,j);
-				byte val02 = input[((j+1)*x)+(i-1)];//&0xFF;//image.getRGB(i-1,j+1);
+				byte val00 = input[((j-1)*x)+(i-1)];//&0xFF;// image.getRGB(i-1,j-1); // top left
+				byte val01 = input[(j*x)+(i-1)];//&0xFF; //image.getRGB(i-1,j); //left
+				byte val02 = input[((j+1)*x)+(i-1)];//&0xFF;//image.getRGB(i-1,j+1); //bottom left
 
-				byte val10 = input[((j-1)*x)+i];//&0xFF; //image.getRGB(i,j-1);
-				byte val11 = input[j*x+i];//&0xFF;//image.getRGB(i,j);
-				byte val12 = input[((j+1)*x)+i];//&0xFF;// image.getRGB(i,j+1);
+				byte val10 = input[((j-1)*x)+i];//&0xFF; //image.getRGB(i,j-1); // top
+				byte val11 = input[j*x+i];//&0xFF;//image.getRGB(i,j); // center
+				byte val12 = input[((j+1)*x)+i];//&0xFF;// image.getRGB(i,j+1); // bottom
 
-				byte val20 = input[((j-1)*x)+(i+1)];//&0xFF; //image.getRGB(i+1,j-1);
-				byte val21 = input[(j*x)+(i+1)];//&0xFF; //image.getRGB(i+1,j);
-				byte val22 = input[((j+1)*x)+(i+1)];//&0xFF; //image.getRGB(i+1,j+1);
+				byte val20 = input[((j-1)*x)+(i+1)];//&0xFF; //image.getRGB(i+1,j-1); //top right
+				byte val21 = input[(j*x)+(i+1)];//&0xFF; //image.getRGB(i+1,j); // right
+				byte val22 = input[((j+1)*x)+(i+1)];//&0xFF; //image.getRGB(i+1,j+1); //bottom right
+				
+				// GX is +1, 0, -1	GY is +1, +2, +1
+				// GX is +2, 0, -2	GY is  0,  0,  0
+				// GX is +1, 0, -1	GY is -1, -2, -1
 
-				int gx=(((-1*val00)+(0*val01)+(1*val02))+((-2*val10)+(0*val11)+(2*val12))+((-1*val20)+(0*val21)+(1*val22)));
-				int gy=(((-1*val00)+(-2*val01)+(-1*val02))+((0*val10)+(0*val11)+(0*val12))+((1*val20)+(2*val21)+(1*val22)));
+				//int gx=(((-1*val00)+(0*val01)+(1*val02))+((-2*val10)+(0*val11)+(2*val12))+((-1*val20)+(0*val21)+(1*val22)));
+				//int gy=(((-1*val00)+(-2*val01)+(-1*val02))+((0*val10)+(0*val11)+(0*val12))+((1*val20)+(2*val21)+(1*val22)));
+				
+				int gx=(((1*val00)+(2*val01)+(1*val02))+((0*val10)+(0*val11)+(0*val12))+((-1*val20)+(-2*val21)+(-1*val22)));
+				int gy=(((1*val00)+(0*val01)+(-1*val02))+((2*val10)+(0*val11)+(-2*val12))+((1*val20)+(0*val21)+(-1*val22)));
+				
 
 				byte gval= (byte)Math.min(255,(Math.sqrt((gx*gx)+(gy*gy))));
-				direction[j*x + i] = Icecore.atan2(gx,gy);
+				direction[j*x + i] = Icecore.atan2(gy,gx);
 							
 				nMax = nMax>gval?nMax:gval;
 				output[j*x + i] = gval;

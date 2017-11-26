@@ -147,7 +147,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 		// suggest downsample to 800 * 800 or even smaller values
 		try
 		{
-			int nTargetWorkingImgDimension = 200;
+			int nTargetWorkingImgDimension = 2000000;
 
 			int radius_min=100;
 			int radius_max=150;
@@ -201,31 +201,34 @@ public class DuncanMaskCollimationHelper implements IFilter
 
 			nonMaxSuppression nonMaxSuppressionObject = new nonMaxSuppression(); 
 			nonMaxSuppressionObject.init(CurWorkImg2,Direction,nWorkingImgWidth,nWorkingImgHeight, CurWorkImg1);
-			nonMaxSuppressionObject.process3();
-
+			nonMaxSuppressionObject.process2();
 
 			hystThresh hystThreshObject = new hystThresh();
 			hystThreshObject.init(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight, (byte)10,(byte)80,CurWorkImg2);
 			hystThreshObject.process();
-
-			for (int n=0;n<results.length;n++) results[n] = 0;
-			circleHough circleHoughObject = new circleHough();
-			circleHoughObject.init(CurWorkImg2,nWorkingImgWidth,nWorkingImgHeight, nWorkingRMin, nWorkingRMax, numofmatches,costable,sintable,ScoreMatrix,MaxMatrix, results);
-			circleHoughObject.process();
 			
-			long nAccTotal = 0;
-			for (int n=0;n<ScoreMatrix.length;n++)
+			for (int n=0;n<bytePixels.length;n++)
 			{
-				for (int m=0;m<ScoreMatrix[n].length;m++)
-				{
-					nAccTotal +=ScoreMatrix[n][m];
-				}
+				OrigImg[n] = CurWorkImg2[n];
 			}
+			
 
-//			for (int n=0;n<bytePixels.length;n++)
+//
+//			for (int n=0;n<results.length;n++) results[n] = 0;
+//			
+//			circleHough circleHoughObject = new circleHough();
+//			circleHoughObject.init(CurWorkImg2,nWorkingImgWidth,nWorkingImgHeight, nWorkingRMin, nWorkingRMax, numofmatches,costable,sintable,ScoreMatrix,MaxMatrix, results);
+//			circleHoughObject.process();
+//			
+//			long nAccTotal = 0;
+//			for (int n=0;n<ScoreMatrix.length;n++)
 //			{
-//				OrigImg[n] = CurWorkImg2[n];
+//				for (int m=0;m<ScoreMatrix[n].length;m++)
+//				{
+//					nAccTotal +=ScoreMatrix[n][m];
+//				}
 //			}
+
 			
 			// the result from circleHoughObject
 			// [0] = score 
@@ -238,27 +241,27 @@ public class DuncanMaskCollimationHelper implements IFilter
 //				OrigImg[n] = CurWorkImg1[n];
 //			}
 
-			String sResults = "<html>";
-			for(int i=numofmatches-1; i>=0; i--)
-			{
-				drawCircle((int)results[i*4], (int)results[i*4+1]*nDownScaleFactor, (int)results[i*4+2]*nDownScaleFactor,(int)results[i*4+3]*nDownScaleFactor,imageSize.width,imageSize.height, OrigImg);
-				sResults += String.format("<br>%d,%d with radius %d. AccTotal = %d",results[i*4+1],results[i*4+2],results[i*4+3], nAccTotal);
-			}
-			sResults +="</html>";
-			
-			JLabel label = null; 
-			if (j==null)
-			{
-				j = new JFrame();
-				label = new JLabel();
-				j.getContentPane().add("exMessage", label);
-			}
-
-			label=(JLabel) j.getContentPane().getComponent(0);
-			label.setText(sResults);
-			j.setSize(1020, 420);
-			label.setSize(new Dimension(1000,400));
-			j.setVisible(true);
+//			String sResults = "<html>";
+//			for(int i=numofmatches-1; i>=0; i--)
+//			{
+//				drawCircle((int)results[i*4], (int)results[i*4+1]*nDownScaleFactor, (int)results[i*4+2]*nDownScaleFactor,(int)results[i*4+3]*nDownScaleFactor,imageSize.width,imageSize.height, OrigImg);
+//				sResults += String.format("<br>%d,%d with radius %d. AccTotal = %d",results[i*4+1],results[i*4+2],results[i*4+3], nAccTotal);
+//			}
+//			sResults +="</html>";
+//			
+//			JLabel label = null; 
+//			if (j==null)
+//			{
+//				j = new JFrame();
+//				label = new JLabel();
+//				j.getContentPane().add("exMessage", label);
+//			}
+//
+//			label=(JLabel) j.getContentPane().getComponent(0);
+//			label.setText(sResults);
+//			j.setSize(1020, 420);
+//			label.setSize(new Dimension(1000,400));
+//			j.setVisible(true);
 		}
 		catch (Exception e)
 		{
@@ -277,7 +280,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 			}
 
 			label=(JLabel) j.getContentPane().getComponent(0);
-			label.setText("<html>Exception:"+e.toString()+"StackTrace="+sStackTrace+"</html>");
+			label.setText("<html>Exception:"+e.toString()+"StackTrace="+sStackTrace.replace("\r","<br>").replace("\n","<br>")+"</html>");
 			j.setSize(1020, 420);
 			label.setSize(new Dimension(1000,400));
 			j.setVisible(true);

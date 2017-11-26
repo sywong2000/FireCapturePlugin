@@ -26,7 +26,7 @@ public class nonMaxSuppression
 
 	public void process()
 	{
-		
+
 		for (int n=0;n<magnitude.length;n++)
 		{
 			if (magnitude[n]< (byte) 180)
@@ -43,9 +43,9 @@ public class nonMaxSuppression
 	public void process3()
 	{
 		// https://rosettacode.org/wiki/Canny_edge_detector#J
-		for(int y=0;y<height;y++) 
+		for(int y=1;y<height-1;y++) 
 		{
-			for(int x=0;x<width;x++) 
+			for(int x=1;x<width-1;x++) 
 			{
 				int nCenter = y*width + x;
 				byte mC = magnitude[nCenter]; 
@@ -57,7 +57,7 @@ public class nonMaxSuppression
 				int nNE = nCenter - width+1;
 				int nSW = nCenter + width-1;
 				int nSE = nCenter + width+1;
-				
+
 				// 
 				// 0 deg is 0
 				// 180 deg is Math.PI
@@ -70,27 +70,20 @@ public class nonMaxSuppression
 				// SW is between PI/8 to 3PI/8: 1-3
 				// S is between 3PI/8 to 5PI/8: 3-5
 				// SE is between 5PI/8 to 7PI/8: 5-7
-				
+
 				float dir = (float) ((direction[y*width+x] + Math.PI)/Math.PI)*8;
-				
-				
-				try 
-				{
-				if ((((dir >7 && dir <=9)||(dir >15 || dir <=1)) && mC > magnitude[nE] && mC > magnitude[nW]) || // E or W
-						(((dir >9 && dir <=11)||(dir >1 && dir <=3)) && mC > magnitude[nNE] && mC > magnitude[nSW]) || // NE or SW
-		                (((dir > 11 && dir <= 13)||(dir > 3 && dir <= 5)) && mC > magnitude[nN] && mC > magnitude[nS]) || // N or S
-		                (((dir > 13 && dir <= 15)||(dir > 5 && dir <= 7)) && mC > magnitude[nNW] && mC > magnitude[nSE]))   // NW or SE
+
+
+				if ((((dir >7 && dir <=9)||(dir >15 || dir <=1)) && mC > magnitude[nE] && mC >= magnitude[nW]) || // E or W
+						(((dir >9 && dir <=11)||(dir >1 && dir <=3)) && mC > magnitude[nNE] && mC >= magnitude[nSW]) || // NE or SW
+						(((dir > 11 && dir <= 13)||(dir > 3 && dir <= 5)) && mC > magnitude[nN] && mC >= magnitude[nS]) || // N or S
+						(((dir > 13 && dir <= 15)||(dir > 5 && dir <= 7)) && mC > magnitude[nNW] && mC >= magnitude[nSE]))   // NW or SE
 				{
 					output[nCenter] = mC;
 				}
 				else
 				{
 					output[nCenter] = (byte)0;
-				}
-				}
-				catch (Exception e)
-				{
-					output[nCenter] = (byte)0;	
 				}
 			}
 		}
@@ -106,7 +99,7 @@ public class nonMaxSuppression
 				if ((magnitude[y*width+x]) > 0) 
 				{
 					double angle = direction[y*width+x];
-					int Mint = magnitude[y*width+x]&0xff;
+					byte Mint = magnitude[y*width+x];
 
 					// angle wants to be the normal so add pi/2
 					angle += pi_over_2;
@@ -127,7 +120,7 @@ public class nonMaxSuppression
 
 					double M2 = (magnitude[(y+y1)*width+(x+x1)]&0xff + magnitude[(y+y2)*width+(x+x2)]&0xff)/2;
 
-					if ((Mint > M1) && (Mint >= M2)) 
+					if ((Mint > (byte) M1) && (Mint >= (byte) M2)) 
 					{
 						// 00000000000000000000000011001000 (the int) Mint int value = (200)
 						// 00000000000000001100100000000000 (the int) Mint << 8
@@ -136,7 +129,7 @@ public class nonMaxSuppression
 						// 11111111110010001100100011001000 (the int) after | int value = -3618616
 						// 11111111000000000000000000000000
 
-						output[y*width+x] = (byte) 255;//0xff000000 | (Mint << 16 | Mint << 8 | Mint);
+						output[y*width+x] = Mint;//0xff000000 | (Mint << 16 | Mint << 8 | Mint);
 					}
 					else 
 					{

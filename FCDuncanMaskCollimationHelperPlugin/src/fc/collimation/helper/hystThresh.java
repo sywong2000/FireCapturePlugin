@@ -59,7 +59,7 @@ public class hystThresh
 		if (nHystStackSize > nMaxLen) return;
 		nHystStackSize++;
 		
-		int value = 0;
+		byte value = 0;
 		for (int x1=x-1;x1<=x+1;x1++) 
 		{
 			for (int y1=y-1;y1<=y+1;y1++) 
@@ -67,7 +67,7 @@ public class hystThresh
 				if ((x1 < width) & (y1 < height) & (x1 >= 0) & (y1 >= 0) & (x1 != x) & (y1 != y)) 
 				{
 					value = (input[y1*width+x1]);//  & 0xff;
-					if (value != 255) 
+					if (value != (byte)255) 
 					{
 						if (value >= lower) 
 						{
@@ -76,7 +76,7 @@ public class hystThresh
 						} 
 						else 
 						{
-							input[y1*width+x1] = 0;//0xff000000;
+							input[y1*width+x1] = (byte)0;//0xff000000;
 						}
 					}
 				}
