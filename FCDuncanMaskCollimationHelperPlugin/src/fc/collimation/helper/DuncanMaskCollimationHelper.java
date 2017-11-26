@@ -24,9 +24,9 @@ public class DuncanMaskCollimationHelper implements IFilter
 	static byte[] CurWorkImg1;
 	static byte[] CurWorkImg2;
 	static int nDownScaleFactor = 1;
-	static int[][] ResultMatrix;
+	static long[][] ScoreMatrix;
 	static int[] MaxMatrix;
-	static int[] results; 
+	static long[] results; 
 
 	static double[] costable = null;
 	static double[] sintable = null;
@@ -147,10 +147,10 @@ public class DuncanMaskCollimationHelper implements IFilter
 		// suggest downsample to 800 * 800 or even smaller values
 		try
 		{
-			int nTargetWorkingImgDimension = 20000000;
+			int nTargetWorkingImgDimension = 200;
 
 			int radius_min=100;
-			int radius_max=180;
+			int radius_max=150;
 
 			int nWorkingRMin = radius_min;
 			int nWorkingRMax = radius_max;
@@ -172,15 +172,17 @@ public class DuncanMaskCollimationHelper implements IFilter
 				nWorkingRMin = radius_min/nDownScaleFactor;
 				nWorkingRMax = Math.max(nWorkingRMin+1,radius_max/nDownScaleFactor);
 			}
+			
+			results = new long[numofmatches*4];
 
-			ResultMatrix = new int[nWorkingRMax-nWorkingRMin][nWorkingTotalImgLen];
+			ScoreMatrix = new long[nWorkingRMax-nWorkingRMin][nWorkingTotalImgLen];
 			MaxMatrix = new int[nWorkingRMax-nWorkingRMin];
 
 			for (int x=0;x<imageSize.width;x++)
 			{
 				for (int y=0;y<imageSize.height;y++)
 				{
-					//OrigImg[y*imageSize.width+x] = bytePixels[y*imageSize.width+x];
+					OrigImg[y*imageSize.width+x] = ((x/2%radius_min==0 && x/2/radius_min==1) || (x/2%radius_max==0 && x/2/radius_max==1) || (y/2%radius_max==0 && y/2/radius_max==1) ||(y/2%radius_min==0 && y/2/radius_min==1))?(byte)255: bytePixels[y*imageSize.width+x];
 					CurWorkImg1[(y/nDownScaleFactor*imageSize.width)+(x/nDownScaleFactor)] = bytePixels[y*imageSize.width+x];
 				}
 			}
@@ -206,14 +208,24 @@ public class DuncanMaskCollimationHelper implements IFilter
 			hystThreshObject.init(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight, (byte)10,(byte)80,CurWorkImg2);
 			hystThreshObject.process();
 
-			for (int n=0;n<bytePixels.length;n++)
+			for (int n=0;n<results.length;n++) results[n] = 0;
+			circleHough circleHoughObject = new circleHough();
+			circleHoughObject.init(CurWorkImg2,nWorkingImgWidth,nWorkingImgHeight, nWorkingRMin, nWorkingRMax, numofmatches,costable,sintable,ScoreMatrix,MaxMatrix, results);
+			circleHoughObject.process();
+			
+			long nAccTotal = 0;
+			for (int n=0;n<ScoreMatrix.length;n++)
 			{
-				OrigImg[n] = CurWorkImg2[n];
+				for (int m=0;m<ScoreMatrix[n].length;m++)
+				{
+					nAccTotal +=ScoreMatrix[n][m];
+				}
 			}
 
-			circleHough circleHoughObject = new circleHough();
-			circleHoughObject.init(CurWorkImg2,nWorkingImgWidth,nWorkingImgHeight, nWorkingRMin, nWorkingRMax, numofmatches,costable,sintable,ResultMatrix,MaxMatrix);
-			results = circleHoughObject.process();
+//			for (int n=0;n<bytePixels.length;n++)
+//			{
+//				OrigImg[n] = CurWorkImg2[n];
+//			}
 			
 			// the result from circleHoughObject
 			// [0] = score 
@@ -226,10 +238,27 @@ public class DuncanMaskCollimationHelper implements IFilter
 //				OrigImg[n] = CurWorkImg1[n];
 //			}
 
+			String sResults = "<html>";
 			for(int i=numofmatches-1; i>=0; i--)
 			{
-				drawCircle(results[i*4], results[i*4+1]*nDownScaleFactor, results[i*4+2]*nDownScaleFactor,results[i*4+3]*nDownScaleFactor,imageSize.width,imageSize.height, OrigImg);
+				drawCircle((int)results[i*4], (int)results[i*4+1]*nDownScaleFactor, (int)results[i*4+2]*nDownScaleFactor,(int)results[i*4+3]*nDownScaleFactor,imageSize.width,imageSize.height, OrigImg);
+				sResults += String.format("<br>%d,%d with radius %d. AccTotal = %d",results[i*4+1],results[i*4+2],results[i*4+3], nAccTotal);
 			}
+			sResults +="</html>";
+			
+			JLabel label = null; 
+			if (j==null)
+			{
+				j = new JFrame();
+				label = new JLabel();
+				j.getContentPane().add("exMessage", label);
+			}
+
+			label=(JLabel) j.getContentPane().getComponent(0);
+			label.setText(sResults);
+			j.setSize(1020, 420);
+			label.setSize(new Dimension(1000,400));
+			j.setVisible(true);
 		}
 		catch (Exception e)
 		{

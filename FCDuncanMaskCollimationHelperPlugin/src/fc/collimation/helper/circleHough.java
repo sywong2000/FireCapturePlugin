@@ -8,22 +8,23 @@ public class circleHough
 	//double progress;
 	int width;
 	int height;
-	int[][] acc;
+	long[][] acc;
 	static int accSize=-1;
-	int[] results;
+	long[] results;
 	int r_min;
 	int r_max;
 	int[] maxtable;
 	static double[] costable = null;
 	static double[] sintable = null;
 
-	public void init(byte[] inputIn, int widthIn, int heightIn, int radius_min, int radius_max, int NumOfMatches, double[] cos_t_in, double[] sin_t_in, int[][] acc_in, int[] max_t_in) 
+	public void init(byte[] inputIn, int widthIn, int heightIn, int radius_min, int radius_max, int NumOfMatches, double[] cos_t_in, double[] sin_t_in, long[][] acc_in, int[] max_t_in, long[] results_in) 
 	{
 		r_min = radius_min;
 		r_max = radius_max;
 		width=widthIn;
 		height=heightIn;
 		input=inputIn;
+		results = results_in;
 
 		acc = acc_in;//new int[r_max-r_min+1][width*height];
 
@@ -31,7 +32,7 @@ public class circleHough
 		
 		if (results==null || results.length!=(accSize*4))
 		{
-			results = new int[accSize*4];
+			results = new long[accSize*4];
 		}
 
 		maxtable = max_t_in;//new int[r_max-r_min+1];
@@ -42,7 +43,7 @@ public class circleHough
 
 	// hough transform for lines (polar), returns the accumulator array
 
-	public int[] process() 
+	public void process() 
 	{
 
 		// for polar we need accumulator of 180degress * the longest length in the image
@@ -64,10 +65,10 @@ public class circleHough
 		{
 			for(int y=0;y<height;y++) 
 			{
-				if ((input[y*width+x])== 255) 
+				if ((input[y*width+x])== (byte)255) 
 				{
 					// speed up the processing by matching 24 points (i.e. 360 degress /24 = 15) 
-					for (int theta=0; theta<360; theta=theta++) 
+					for (int theta=0; theta<360; theta++) 
 					{
 						//t = (theta * 3.14159265) / 180;
 						for (int rd = 0;rd<(r_max-r_min);rd++)
@@ -78,7 +79,7 @@ public class circleHough
 							if(x0 < width && x0 > 0 && y0 < height && y0 > 0) 
 							{
 								acc[rd][x0 + (y0 * width)] += 1;
-								maxtable[rd]= (acc[rd][x0 + (y0 * width)]>maxtable[rd])?acc[rd][x0 + (y0 * width)]:maxtable[rd];
+								//maxtable[rd]= (acc[rd][x0 + (y0 * width)]>maxtable[rd])?acc[rd][x0 + (y0 * width)]:maxtable[rd];
 							}
 						}
 					}
@@ -116,8 +117,6 @@ public class circleHough
 //		}
 
 		findMaxima();
-
-		return results;
 	}
 
 	private void findMaxima()
@@ -129,13 +128,13 @@ public class circleHough
 		{
 			for(int n=0;n<acc[rd].length;n++) 
 			{
-				int value = acc[rd][n];// & 0xff;
+				long value = acc[rd][n];// & 0xff;
 				// if its higher than lowest value add it and then sort
 				if (value > results[(accSize-1)*4]) 
 				{
-					int x = n % width;
-					int y = n / width;
-					int radius = rd+r_min;
+					long x = n % width;
+					long y = n / width;
+					long radius = rd+r_min;
 
 					// add to bottom of array
 					results[(accSize-1)*4] = value;
@@ -149,7 +148,7 @@ public class circleHough
 					{
 						for(int j=0; j<4; j++) 
 						{
-							int temp = results[i+j];
+							long temp = results[i+j];
 							results[i+j] = results[i+j+4];
 							results[i+j+4] = temp;
 						}
