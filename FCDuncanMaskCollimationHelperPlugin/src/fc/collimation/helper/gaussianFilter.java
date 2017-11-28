@@ -5,7 +5,7 @@ public class gaussianFilter
 	byte[] input;
 	byte[] output;
 	float[] template;
-	double sigma;
+	float sigma;
 	int templateSize;
 	int width;
 	int height;
@@ -14,7 +14,7 @@ public class gaussianFilter
 	public void init(byte[] original, byte[] output_in, int sigmaIn, int tempSize, int widthIn, int heightIn) 
 	{
 		if((tempSize%2)==0) templateSize=tempSize-1;
-		sigma=(double)sigmaIn;
+		sigma=sigmaIn;
 		templateSize=tempSize;
 		width=widthIn;
 		height=heightIn;
@@ -45,6 +45,27 @@ public class gaussianFilter
 			}
 		}
 	}
+
+
+	public float[] boxesForGauss(float sigma, int n)  // standard deviation, number of boxes
+	{
+		float wIdeal = (float) Math.sqrt((12*sigma*sigma/n)+1);  // Ideal averaging filter width 
+		float wl = (float) Math.floor(wIdeal);  
+		if(wl%2==0) wl--;
+		float wu = wl+2;
+
+		float mIdeal = (12*sigma*sigma - n*wl*wl - 4*n*wl - 3*n)/(-4*wl - 4);
+		float m = Math.round(mIdeal);
+		// var sigmaActual = Math.sqrt( (m*wl*wl + (n-m)*wu*wu - n)/12 );
+
+		float[] sizes = new float[n];  
+		for(int i=0; i<n; i++)
+		{
+			sizes[n] = i<m?wl:wu;
+		}
+		return sizes;
+	}
+
 	public void process() 
 	{
 		float sum;

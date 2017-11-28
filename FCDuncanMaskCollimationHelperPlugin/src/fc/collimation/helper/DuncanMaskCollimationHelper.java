@@ -1,9 +1,15 @@
 package fc.collimation.helper;
+import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Image;
 import java.awt.Rectangle;
+import java.awt.image.BufferedImage;
+import java.awt.image.WritableRaster;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Properties;
+
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -17,6 +23,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 {
 
 	static JFrame j = null;
+	static JFrame jImage = null;
 	static double[] Direction;
 	static int nWorkingImgWidth=0;
 	static int nWorkingImgHeight=0;
@@ -25,7 +32,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 	static byte[] CurWorkImg2;
 	static int nDownScaleFactor = 1;
 	static long[][] ScoreMatrix;
-	static int[] MaxMatrix;
+	static long[] MaxMatrix;
 	static long[] results; 
 
 	static double[] costable = null;
@@ -147,10 +154,10 @@ public class DuncanMaskCollimationHelper implements IFilter
 		// suggest downsample to 800 * 800 or even smaller values
 		try
 		{
-			int nTargetWorkingImgDimension = 2000000;
+			int nTargetWorkingImgDimension = 200;
 
-			int radius_min=100;
-			int radius_max=150;
+			int radius_min=80;
+			int radius_max=140;
 
 			int nWorkingRMin = radius_min;
 			int nWorkingRMax = radius_max;
@@ -162,7 +169,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 			{
 				nDownScaleFactor = Math.max(1,Math.min(imageSize.width, imageSize.height)/nTargetWorkingImgDimension);
 				nWorkingTotalImgLen = bytePixels.length/nDownScaleFactor;
-				
+
 				Direction = new double[nWorkingTotalImgLen];
 				OrigImg = new byte[bytePixels.length];
 				CurWorkImg1 = new byte[nWorkingTotalImgLen];
@@ -172,11 +179,11 @@ public class DuncanMaskCollimationHelper implements IFilter
 				nWorkingRMin = radius_min/nDownScaleFactor;
 				nWorkingRMax = Math.max(nWorkingRMin+1,radius_max/nDownScaleFactor);
 			}
-			
+
 			results = new long[numofmatches*4];
 
 			ScoreMatrix = new long[nWorkingRMax-nWorkingRMin][nWorkingTotalImgLen];
-			MaxMatrix = new int[nWorkingRMax-nWorkingRMin];
+			MaxMatrix = new long[nWorkingRMax-nWorkingRMin];
 
 			for (int x=0;x<imageSize.width;x++)
 			{
@@ -187,81 +194,112 @@ public class DuncanMaskCollimationHelper implements IFilter
 				}
 			}
 
-//			gaussianFilter gaussianObject = new gaussianFilter();
-//			gaussianObject.init(CurWorkImg1, CurWorkImg2, 3,5,nWorkingImgWidth, nWorkingImgHeight);
-//			gaussianObject.generateTemplate();
-//			gaussianObject.process();
-			
+			//			gaussianFilter gaussianObject = new gaussianFilter();
+			//			gaussianObject.init(CurWorkImg1, CurWorkImg2, 3,5,nWorkingImgWidth, nWorkingImgHeight);
+			//			gaussianObject.generateTemplate();
+			//			gaussianObject.process();
 
-			
+
+
 			sobel sobelObject = new sobel();
 			sobelObject.init(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight,Direction,CurWorkImg2);
 			sobelObject.process();
-			
 
 			nonMaxSuppression nonMaxSuppressionObject = new nonMaxSuppression(); 
 			nonMaxSuppressionObject.init(CurWorkImg2,Direction,nWorkingImgWidth,nWorkingImgHeight, CurWorkImg1);
 			nonMaxSuppressionObject.process2();
 
 			hystThresh hystThreshObject = new hystThresh();
-			hystThreshObject.init(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight, (byte)10,(byte)80,CurWorkImg2);
+			hystThreshObject.init(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight, (byte)10,(byte)20,CurWorkImg2);
 			hystThreshObject.process();
-			
-			for (int n=0;n<bytePixels.length;n++)
+
+			for (int n=0;n<results.length;n++) results[n] = 0;
+
+			circleHough circleHoughObject = new circleHough();
+			circleHoughObject.init(CurWorkImg2,nWorkingImgWidth,nWorkingImgHeight, nWorkingRMin, nWorkingRMax, numofmatches,costable,sintable,ScoreMatrix,MaxMatrix, results);
+			circleHoughObject.process();
+
+			long nAccTotal = 0;
+
+			for (int n=0;n<ScoreMatrix.length;n++)
 			{
-				OrigImg[n] = CurWorkImg2[n];
+				for (int m=0;m<ScoreMatrix[n].length;m++)
+				{
+					nAccTotal +=ScoreMatrix[n][m];
+				}
 			}
-			
 
-//
-//			for (int n=0;n<results.length;n++) results[n] = 0;
-//			
-//			circleHough circleHoughObject = new circleHough();
-//			circleHoughObject.init(CurWorkImg2,nWorkingImgWidth,nWorkingImgHeight, nWorkingRMin, nWorkingRMax, numofmatches,costable,sintable,ScoreMatrix,MaxMatrix, results);
-//			circleHoughObject.process();
-//			
-//			long nAccTotal = 0;
-//			for (int n=0;n<ScoreMatrix.length;n++)
-//			{
-//				for (int m=0;m<ScoreMatrix[n].length;m++)
-//				{
-//					nAccTotal +=ScoreMatrix[n][m];
-//				}
-//			}
+			long nMax = MaxMatrix[0];
+			int[] nMap = new int[ScoreMatrix[0].length];
+			for (int n=0;n<ScoreMatrix[0].length;n++)
+			{
+				nMap[n] = (int) (ScoreMatrix[0][n]/nMax * 255);
+			}
 
-			
+			Image img = getImageFromArray(nMap,nWorkingImgWidth, nWorkingImgHeight);
+
 			// the result from circleHoughObject
 			// [0] = score 
 			// [1] = x coordinate 
 			// [2] = y coordinate
 			// [3] = radius
-//
-//			for (int n=0;n<bytePixels.length;n++)
-//			{
-//				OrigImg[n] = CurWorkImg1[n];
-//			}
 
-//			String sResults = "<html>";
-//			for(int i=numofmatches-1; i>=0; i--)
-//			{
-//				drawCircle((int)results[i*4], (int)results[i*4+1]*nDownScaleFactor, (int)results[i*4+2]*nDownScaleFactor,(int)results[i*4+3]*nDownScaleFactor,imageSize.width,imageSize.height, OrigImg);
-//				sResults += String.format("<br>%d,%d with radius %d. AccTotal = %d",results[i*4+1],results[i*4+2],results[i*4+3], nAccTotal);
-//			}
-//			sResults +="</html>";
-//			
-//			JLabel label = null; 
-//			if (j==null)
-//			{
-//				j = new JFrame();
-//				label = new JLabel();
-//				j.getContentPane().add("exMessage", label);
-//			}
-//
-//			label=(JLabel) j.getContentPane().getComponent(0);
-//			label.setText(sResults);
-//			j.setSize(1020, 420);
-//			label.setSize(new Dimension(1000,400));
-//			j.setVisible(true);
+			//			for (int n=0;n<bytePixels.length;n++)
+			//			{
+			//				OrigImg[n] = CurWorkImg1[n];
+			//			}
+
+			String sResults = "<html>";
+			for(int i=numofmatches-1; i>=0; i--)
+			{
+				drawCircle((int)results[i*4], (int)results[i*4+1]*nDownScaleFactor, (int)results[i*4+2]*nDownScaleFactor,(int)results[i*4+3]*nDownScaleFactor,imageSize.width,imageSize.height, OrigImg);
+				sResults += String.format("<br>%d,%d with radius %d. AccTotal = %d",results[i*4+1],results[i*4+2],results[i*4+3], nAccTotal);
+			}
+			sResults +="</html>";
+
+			if (jImage==null)
+			{
+				jImage = new JFrame();
+				JLabel label = new JLabel();
+				jImage.getContentPane().add("Img", label);
+			}
+			JLabel label = (JLabel) jImage.getContentPane().getComponent(0);
+			label.setIcon(new ImageIcon(img));
+			jImage.setSize(1020, 920);
+			jImage.setVisible(true);
+			
+
+			//			if (j==null)
+			//			{
+			//				j = new JFrame();
+			//				label = new JLabel();
+			//				labelImg = new JLabel();
+			//				j.getContentPane().add("exMessage", label);
+			//				j.getContentPane().add("Image", labelImg);
+			//			}
+			//
+			//			Component[] c = j.getContentPane().getComponents();
+			//			for (int n = 0;n<c.length;n++)
+			//			{
+			//				if (c[n].getName()!= null)
+			//				{
+			//					if (c[n].getName().equals("exMessage"))
+			//					{
+			//						label=(JLabel) c[n];
+			//						label.setText(sResults);
+			//						label.setSize(new Dimension(1000,400));
+			//					}
+			//					else if (c[n].getName().equals("Image"))
+			//					{
+			//						labelImg=(JLabel) c[n];
+			//						labelImg.setIcon(new ImageIcon(img));
+			//					}
+			//				}
+			//			}
+			//
+			//			j.setSize(1020, 920);
+			//			//j.pack();
+			//			j.setVisible(true);
 		}
 		catch (Exception e)
 		{
@@ -302,6 +340,15 @@ public class DuncanMaskCollimationHelper implements IFilter
 		//LinesImage = createImage(new MemoryImageSource(width, height, orig, 0, width));
 
 
+	}
+
+	public Image getImageFromArray(int[] pixels, int width, int height) 
+	{
+		BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
+		WritableRaster raster = (WritableRaster) image.getData();
+		//System.out.println(pixels.length + " " + width + " " + height);
+		raster.setPixels(0,0,width,height,pixels);
+		return image;
 	}
 
 	private void drawCircle(int pix, int xCenter, int yCenter,int radius, int width, int height, byte[] output) 

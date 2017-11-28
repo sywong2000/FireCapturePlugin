@@ -13,11 +13,11 @@ public class circleHough
 	long[] results;
 	int r_min;
 	int r_max;
-	int[] maxtable;
+	long[] maxtable;
 	static double[] costable = null;
 	static double[] sintable = null;
 
-	public void init(byte[] inputIn, int widthIn, int heightIn, int radius_min, int radius_max, int NumOfMatches, double[] cos_t_in, double[] sin_t_in, long[][] acc_in, int[] max_t_in, long[] results_in) 
+	public void init(byte[] inputIn, int widthIn, int heightIn, int radius_min, int radius_max, int NumOfMatches, double[] cos_t_in, double[] sin_t_in, long[][] acc_in, long[] max_t_in, long[] results_in) 
 	{
 		r_min = radius_min;
 		r_max = radius_max;
@@ -74,12 +74,12 @@ public class circleHough
 						for (int rd = 0;rd<(r_max-r_min);rd++)
 						{
 							int radius = r_min+rd;
-							x0 = (int)Math.round(x - radius * costable[theta]);
-							y0 = (int)Math.round(y - radius * sintable[theta]);
+							x0 = (int)Math.round(x - (radius * costable[theta]));
+							y0 = (int)Math.round(y - (radius * sintable[theta]));
 							if(x0 < width && x0 > 0 && y0 < height && y0 > 0) 
 							{
 								acc[rd][x0 + (y0 * width)] += 1;
-								//maxtable[rd]= (acc[rd][x0 + (y0 * width)]>maxtable[rd])?acc[rd][x0 + (y0 * width)]:maxtable[rd];
+								maxtable[rd]= (acc[rd][x0 + (y0 * width)]>maxtable[rd])?acc[rd][x0 + (y0 * width)]:maxtable[rd];
 							}
 						}
 					}
@@ -121,9 +121,9 @@ public class circleHough
 
 	private void findMaxima()
 	{
+		
 		for (int n=0;n<results.length;n++) results[n]=0;
 		
-
 		for (int rd=0;rd<(r_max-r_min);rd++)
 		{
 			for(int n=0;n<acc[rd].length;n++) 
