@@ -190,7 +190,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 				for (int y=0;y<imageSize.height;y++)
 				{
 					OrigImg[y*imageSize.width+x] = ((x/2%radius_min==0 && x/2/radius_min==1) || (x/2%radius_max==0 && x/2/radius_max==1) || (y/2%radius_max==0 && y/2/radius_max==1) ||(y/2%radius_min==0 && y/2/radius_min==1))?(byte)255: bytePixels[y*imageSize.width+x];
-					CurWorkImg1[(y/nDownScaleFactor*imageSize.width)+(x/nDownScaleFactor)] = bytePixels[y*imageSize.width+x];
+					CurWorkImg1[(y/nDownScaleFactor*nWorkingImgWidth)+(x/nDownScaleFactor)] = bytePixels[y*imageSize.width+x];
 				}
 			}
 
@@ -209,9 +209,17 @@ public class DuncanMaskCollimationHelper implements IFilter
 			nonMaxSuppressionObject.init(CurWorkImg2,Direction,nWorkingImgWidth,nWorkingImgHeight, CurWorkImg1);
 			nonMaxSuppressionObject.process2();
 
+			byte[] nMap = new byte[CurWorkImg1.length];
+			for (int n=0;n<CurWorkImg1.length;n++)
+			{
+				nMap[n] = CurWorkImg1[n];
+			}
+
 			hystThresh hystThreshObject = new hystThresh();
 			hystThreshObject.init(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight, (byte)10,(byte)20,CurWorkImg2);
 			hystThreshObject.process();
+
+			
 
 			for (int n=0;n<results.length;n++) results[n] = 0;
 
@@ -229,13 +237,18 @@ public class DuncanMaskCollimationHelper implements IFilter
 				}
 			}
 
-			long nMax = MaxMatrix[0];
-			int[] nMap = new int[ScoreMatrix[0].length];
-			for (int n=0;n<ScoreMatrix[0].length;n++)
-			{
-				nMap[n] = (int) (ScoreMatrix[0][n]/nMax * 255);
-			}
+			
+//			long nMax = MaxMatrix[0];
+//			byte[] nMap = new byte[ScoreMatrix[0].length];
+//			
+//			for (int n=0;n<ScoreMatrix[0].length;n++)
+//			{
+//				nMap[n] = (byte) (ScoreMatrix[0][n]/nMax * 255);
+//			}
 
+			
+			
+			
 			Image img = getImageFromArray(nMap,nWorkingImgWidth, nWorkingImgHeight);
 
 			// the result from circleHoughObject
@@ -261,11 +274,13 @@ public class DuncanMaskCollimationHelper implements IFilter
 			{
 				jImage = new JFrame();
 				JLabel label = new JLabel();
-				jImage.getContentPane().add("Img", label);
+				jImage.getContentPane().add(label);
 			}
+			
 			JLabel label = (JLabel) jImage.getContentPane().getComponent(0);
 			label.setIcon(new ImageIcon(img));
-			jImage.setSize(1020, 920);
+			label.setSize(nWorkingImgWidth,nWorkingImgHeight);
+			jImage.setSize(800, 800);
 			jImage.setVisible(true);
 			
 
@@ -342,12 +357,10 @@ public class DuncanMaskCollimationHelper implements IFilter
 
 	}
 
-	public Image getImageFromArray(int[] pixels, int width, int height) 
+	public Image getImageFromArray(byte[] pixels, int width, int height) 
 	{
 		BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
-		WritableRaster raster = (WritableRaster) image.getData();
-		//System.out.println(pixels.length + " " + width + " " + height);
-		raster.setPixels(0,0,width,height,pixels);
+		image.getRaster().setDataElements(0, 0, width, height, pixels);
 		return image;
 	}
 

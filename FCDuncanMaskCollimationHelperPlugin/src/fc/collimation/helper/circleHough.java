@@ -29,7 +29,7 @@ public class circleHough
 		acc = acc_in;//new int[r_max-r_min+1][width*height];
 
 		accSize=NumOfMatches;
-		
+
 		if (results==null || results.length!=(accSize*4))
 		{
 			results = new long[accSize*4];
@@ -105,55 +105,76 @@ public class circleHough
 		//System.out.println("Max :" + max);
 		// Normalise all the values
 
-//		byte value;
-//
-//		for (int rd=0;rd<(r_max-r_min);rd++)
-//		{
-//			for(int n=0;n<acc[rd].length;n++) 
-//			{
-//				value = (byte)(((double)acc[rd][n]/(double)maxtable[rd])*255.0);
-//				acc[rd][n] = value;//0xff000000 | (value << 16 | value << 8 | value);
-//			}
-//		}
+		//		byte value;
+		//
+		//		for (int rd=0;rd<(r_max-r_min);rd++)
+		//		{
+		//			for(int n=0;n<acc[rd].length;n++) 
+		//			{
+		//				value = (byte)(((double)acc[rd][n]/(double)maxtable[rd])*255.0);
+		//				acc[rd][n] = value;//0xff000000 | (value << 16 | value << 8 | value);
+		//			}
+		//		}
 
 		findMaxima();
 	}
 
 	private void findMaxima()
 	{
-		
+
 		for (int n=0;n<results.length;n++) results[n]=0;
-		
+
 		for (int rd=0;rd<(r_max-r_min);rd++)
 		{
 			for(int n=0;n<acc[rd].length;n++) 
 			{
 				long value = acc[rd][n];// & 0xff;
 				// if its higher than lowest value add it and then sort
-				if (value > results[(accSize-1)*4]) 
+				long x = n % width;
+				long y = n / width;
+				long radius = rd+r_min;
+
+				long r_maxscore = results[(accSize-1)*4];
+
+				if (value > r_maxscore) 
 				{
-					long x = n % width;
-					long y = n / width;
-					long radius = rd+r_min;
-
-					// add to bottom of array
-					results[(accSize-1)*4] = value;
-					results[(accSize-1)*4+1] = x;
-					results[(accSize-1)*4+2] = y;
-					results[(accSize-1)*4+3] = radius;
-
-					// shift up until its in right place
-					int i = (accSize-2)*4;
-					while ((i >= 0) && (results[i+4] > results[i])) 
+					// avoid overlapped results
+					// check the circle center to give it a certain threshold
+					boolean bTooNear = false;
+					for (int i=0;i<accSize;i++)
 					{
-						for(int j=0; j<4; j++) 
+						long r_x = results[(accSize-1-i)*4+1];
+						long r_y = results[(accSize-1-i)*4+2];
+						long d = (long) Math.sqrt((r_x-x)*(r_x-x) + (r_y-y)*(r_y-y));
+						if (d < 2*radius)
 						{
-							long temp = results[i+j];
-							results[i+j] = results[i+j+4];
-							results[i+j+4] = temp;
+							bTooNear = true;
+							break;
 						}
-						i = i - 4;
-						if (i < 0) break;
+					}
+
+					if (!bTooNear)
+					{
+
+						// add to bottom of array
+						results[(accSize-1)*4] = value;
+						results[(accSize-1)*4+1] = x;
+						results[(accSize-1)*4+2] = y;
+						results[(accSize-1)*4+3] = radius;
+
+						// shift up until its in right place
+						int i = (accSize-2)*4;
+						while ((i >= 0) && (results[i+4] > results[i])) 
+						{
+							for(int j=0; j<4; j++) 
+							{
+								long temp = results[i+j];
+								results[i+j] = results[i+j+4];
+								results[i+j+4] = temp;
+							}
+							i = i - 4;
+							if (i < 0) break;
+						}
 					}
 				}
 			}
