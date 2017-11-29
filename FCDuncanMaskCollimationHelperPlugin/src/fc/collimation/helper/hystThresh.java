@@ -54,6 +54,7 @@ public class hystThresh
 			}
 		}
 	}
+	
 	private void hystConnect(int x, int y) 
 	{
 		if (nHystStackSize > nMaxLen) return;
