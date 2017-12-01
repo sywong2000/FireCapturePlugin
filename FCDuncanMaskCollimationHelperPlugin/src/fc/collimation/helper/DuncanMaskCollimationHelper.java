@@ -28,6 +28,9 @@ public class DuncanMaskCollimationHelper implements IFilter
 	static double[] Direction;
 	static int nWorkingImgWidth=0;
 	static int nWorkingImgHeight=0;
+	static int nWorkingRMin;
+	static int nWorkingRMax;
+	
 	static byte[] OrigImg;
 	static byte[] CurWorkImg1;
 	static byte[] CurWorkImg2;
@@ -40,7 +43,14 @@ public class DuncanMaskCollimationHelper implements IFilter
 	static double[] sintable = null;
 	static int nHystStackSize = 0;
 	static int nHystMaxLen = 0;
-
+	static int nTargetWorkingImgDimension = 300;
+	
+	static int RadiusMinValue=10;
+	static int RadiusMaxValue=20;
+	
+	static int nObjectRadius = 100;
+	
+	
 	static
 	{
 		costable = new double[360];
@@ -83,9 +93,10 @@ public class DuncanMaskCollimationHelper implements IFilter
 	}
 
 	@Override
-	public String getStringUsage(int percent) {
+	public String getStringUsage(int percent) 
+	{
 		// TODO Auto-generated method stub
-		return null;
+		return (new StringBuilder("Detect object Radius: ")).append(percent*5).append(" pixels.").toString();
 	}
 
 	@Override
@@ -97,7 +108,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 	@Override
 	public boolean useSlider() {
 		// TODO Auto-generated method stub
-		return false;
+		return true;
 	}
 
 	@Override
@@ -113,21 +124,28 @@ public class DuncanMaskCollimationHelper implements IFilter
 	}
 
 	@Override
-	public void sliderValueChanged(int value) {
+	public void sliderValueChanged(int value) 
+	{
 		// TODO Auto-generated method stub
+		nObjectRadius = value * 5;
 
+		RadiusMinValue= (int) (nObjectRadius * 0.8);
+		RadiusMaxValue= (int) (nObjectRadius * 1.2);
+
+		nWorkingRMin = RadiusMinValue/nDownScaleFactor;
+		nWorkingRMax = Math.max(nWorkingRMin+1,RadiusMaxValue/nDownScaleFactor);
 	}
 
 	@Override
 	public int getInitialSliderValue() {
 		// TODO Auto-generated method stub
-		return 0;
+		return 10;
 	}
 
 	@Override
-	public void imageSizeChanged() {
+	public void imageSizeChanged() 
+	{
 		// TODO Auto-generated method stub
-
 	}
 
 	@Override
@@ -161,13 +179,6 @@ public class DuncanMaskCollimationHelper implements IFilter
 		// suggest downsample to 800 * 800 or even smaller values
 		try
 		{
-			int nTargetWorkingImgDimension = 200;
-
-			int radius_min=80;
-			int radius_max=140;
-
-			int nWorkingRMin = radius_min;
-			int nWorkingRMax = radius_max;
 
 			int numofmatches=3;
 
@@ -183,8 +194,8 @@ public class DuncanMaskCollimationHelper implements IFilter
 				CurWorkImg2 = new byte[nWorkingTotalImgLen];
 				nWorkingImgWidth = imageSize.width/nDownScaleFactor;
 				nWorkingImgHeight = imageSize.height/nDownScaleFactor;
-				nWorkingRMin = radius_min/nDownScaleFactor;
-				nWorkingRMax = Math.max(nWorkingRMin+1,radius_max/nDownScaleFactor);
+				nWorkingRMin = RadiusMinValue/nDownScaleFactor;
+				nWorkingRMax = Math.max(nWorkingRMin+1,RadiusMaxValue/nDownScaleFactor);
 				results = new int[numofmatches*4];
 			}
 
@@ -197,7 +208,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 			{
 				for (int y=0;y<imageSize.height;y++)
 				{
-					OrigImg[y*imageSize.width+x] = ((x/2%radius_min==0 && x/2/radius_min==1) || (x/2%radius_max==0 && x/2/radius_max==1) || (y/2%radius_max==0 && y/2/radius_max==1) ||(y/2%radius_min==0 && y/2/radius_min==1))?(byte)255: bytePixels[y*imageSize.width+x];
+					OrigImg[y*imageSize.width+x] = ((x/2%RadiusMinValue==0 && x/2/RadiusMinValue==1) || (x/2%RadiusMaxValue==0 && x/2/RadiusMaxValue==1) || (y/2%RadiusMaxValue==0 && y/2/RadiusMaxValue==1) ||(y/2%RadiusMinValue==0 && y/2/RadiusMinValue==1))?(byte)255: bytePixels[y*imageSize.width+x];
 					CurWorkImg1[(y/nDownScaleFactor*nWorkingImgWidth)+(x/nDownScaleFactor)] = bytePixels[y*imageSize.width+x];
 				}
 			}
@@ -275,40 +286,72 @@ public class DuncanMaskCollimationHelper implements IFilter
 			//				OrigImg[n] = CurWorkImg1[n];
 			//			}
 
-			String sResults = "<html>";
+			String sResults = "<html>Results:<br>";
+
+			int r_x,r_y, x, y;
+			r_x = results[5]*nDownScaleFactor;
+			x = results[9]*nDownScaleFactor;
+			r_y = results[6]*nDownScaleFactor;
+			y = results[10]*nDownScaleFactor;
+			int d1 = (int) Math.sqrt((r_x-x)*(r_x-x) + (r_y-y)*(r_y-y));
+
+			r_x = results[9]*nDownScaleFactor;
+			x = results[13]*nDownScaleFactor;
+			r_y = results[10]*nDownScaleFactor;
+			y = results[14]*nDownScaleFactor;
+			
+			int d2 = (int) Math.sqrt((r_x-x)*(r_x-x) + (r_y-y)*(r_y-y));
+
+			r_x = results[13]*nDownScaleFactor;
+			x = results[5]*nDownScaleFactor;
+			r_y = results[14]*nDownScaleFactor;
+			y = results[6]*nDownScaleFactor;
+
+			int d3 = (int) Math.sqrt((r_x-x)*(r_x-x) + (r_y-y)*(r_y-y));
+			
 			for(int i=numofmatches-1; i>=0; i--)
 			{
-				drawCircle((int)results[i*4], (int)results[i*4+1]*nDownScaleFactor, (int)results[i*4+2]*nDownScaleFactor,(int)results[i*4+3]*nDownScaleFactor,imageSize.width,imageSize.height, bytePixels);
-//				sResults += String.format("<br>%d,%d with radius %d. AccTotal = %d",results[i*4+1],results[i*4+2],results[i*4+3], nAccTotal);
+				drawCircle((byte)255, (int)results[i*4+1]*nDownScaleFactor, (int)results[i*4+2]*nDownScaleFactor,(int)results[i*4+3]*nDownScaleFactor,imageSize.width,imageSize.height, bytePixels);
+				sResults += String.format("<br>%d,%d with radius %d.",results[i*4+1],results[i*4+2],results[i*4+3]);
 			}
+
+			drawDottedCircle(0, imageSize.width/2, imageSize.height/2,RadiusMinValue,imageSize.width,imageSize.height, bytePixels);
+			drawDottedCircle(0, imageSize.width/2, imageSize.height/2,RadiusMaxValue,imageSize.width,imageSize.height, bytePixels);
+			sResults += String.format("<br>d1=%d,d2=%d,d3=%d.",d1,d2,d3);
 			sResults +="</html>";
 
 			if (jImage==null)
 			{
 				jImage = new JFrame();
 				JLabel label = new JLabel();
+				JLabel lbTxt = new JLabel();
 				jImage.getContentPane().add(label);
+				jImage.getContentPane().add(lbTxt);
 			}
 
 			JLabel label = (JLabel) jImage.getContentPane().getComponent(0);
+			JLabel lbTxt = (JLabel) jImage.getContentPane().getComponent(1);
+			lbTxt.setText(sResults);
+			lbTxt.setSize(nWorkingImgWidth, (int)(nWorkingImgHeight*0.5));
+			
 			label.setIcon(new ImageIcon(img));
 			label.setSize(nWorkingImgWidth,nWorkingImgHeight);
-			jImage.setSize(nWorkingImgWidth, nWorkingImgHeight);
+			jImage.setSize(nWorkingImgWidth, (int)(nWorkingImgHeight*1.5));
 			jImage.setVisible(true);
 
 
-//			if (j==null)
-//			{
-//				j = new JFrame();
-//				label = new JLabel();
-//				j.getContentPane().add("exMessage", label);
-//			}
-//
-//			label = (JLabel)(j.getContentPane().getComponent(0));
-//			label.setText(sResults);
-//
-//			j.setSize(1020, 920);
-//			j.setVisible(true);
+			if (j==null)
+			{
+				j = new JFrame();
+				label = new JLabel();
+				j.getContentPane().add("exMessage", label);
+			}
+
+			label = (JLabel)(j.getContentPane().getComponent(0));
+			label.setText(sResults);
+
+			j.setSize(500, 420);
+			j.setVisible(true);
 		}
 		catch (Exception e)
 		{
@@ -351,6 +394,186 @@ public class DuncanMaskCollimationHelper implements IFilter
 
 	}
 
+	
+	@Override
+	public void computeColor(int[] rgbPixels, Rectangle imageSize, CamInfo info) 
+	{
+		try
+		{
+			int numofmatches=3;
+			byte[] bytePixels = new byte[rgbPixels.length];
+
+			int nWorkingTotalImgLen = bytePixels.length;
+			if (imageSize.width!=(nWorkingImgWidth*nDownScaleFactor) || imageSize.height!=(nWorkingImgHeight*nDownScaleFactor) )
+			{
+				nDownScaleFactor = Math.max(1,Math.min(imageSize.width, imageSize.height)/nTargetWorkingImgDimension);
+				nWorkingTotalImgLen = bytePixels.length/nDownScaleFactor;
+
+				Direction = new double[nWorkingTotalImgLen];
+				OrigImg = new byte[bytePixels.length];
+				CurWorkImg1 = new byte[nWorkingTotalImgLen];
+				CurWorkImg2 = new byte[nWorkingTotalImgLen];
+				nWorkingImgWidth = imageSize.width/nDownScaleFactor;
+				nWorkingImgHeight = imageSize.height/nDownScaleFactor;
+				nWorkingRMin = RadiusMinValue/nDownScaleFactor;
+				nWorkingRMax = Math.max(nWorkingRMin+1,RadiusMaxValue/nDownScaleFactor);
+				results = new int[numofmatches*4];
+			}
+
+			
+
+			ScoreMatrix = new int[nWorkingRMax-nWorkingRMin][nWorkingTotalImgLen];
+			//MaxMatrix = new long[nWorkingRMax-nWorkingRMin];
+
+			for (int n=0;n<rgbPixels.length;n++)
+			{
+				bytePixels[n] = (byte) getGrayScale(rgbPixels[n]);
+			}
+			
+			for (int x=0;x<imageSize.width;x++)
+			{
+				for (int y=0;y<imageSize.height;y++)
+				{
+					OrigImg[y*imageSize.width+x] = ((x/2%RadiusMinValue==0 && x/2/RadiusMinValue==1) || (x/2%RadiusMaxValue==0 && x/2/RadiusMaxValue==1) || (y/2%RadiusMaxValue==0 && y/2/RadiusMaxValue==1) ||(y/2%RadiusMinValue==0 && y/2/RadiusMinValue==1))?(byte)255: bytePixels[y*imageSize.width+x];
+					CurWorkImg1[(y/nDownScaleFactor*nWorkingImgWidth)+(x/nDownScaleFactor)] = bytePixels[y*imageSize.width+x];
+				}
+			}
+
+			//			gaussianFilter gaussianObject = new gaussianFilter();
+			//			gaussianObject.init(CurWorkImg1, CurWorkImg2, 3,5,nWorkingImgWidth, nWorkingImgHeight);
+			//			gaussianObject.generateTemplate();
+			//			gaussianObject.process();
+
+
+
+			//			sobel sobelObject = new sobel();
+			//			sobelObject.init(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight,Direction,CurWorkImg2);
+			SobelProcess(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight,Direction,CurWorkImg2);
+
+			//			nonMaxSuppression nonMaxSuppressionObject = new nonMaxSuppression(); 
+			//			nonMaxSuppressionObject.init(CurWorkImg2,Direction,nWorkingImgWidth,nWorkingImgHeight, CurWorkImg1);
+			//			nonMaxSuppressionObject.process2();
+			NonMaxSuppressionProcess(CurWorkImg2,Direction,nWorkingImgWidth,nWorkingImgHeight, CurWorkImg1);
+
+			byte[] nMap = new byte[CurWorkImg1.length];
+			nHystStackSize = 0;
+			nHystMaxLen = (int) (2*Math.PI * Math.min(nWorkingImgWidth,nWorkingImgHeight)/2);
+
+			//			hystThresh hystThreshObject = new hystThresh();
+			//			hystThreshObject.init(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight, (byte)10,(byte)20,CurWorkImg2);
+			//			hystThreshObject.process();
+			hystThreshProcess(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight, (byte)10,(byte)20,CurWorkImg2);
+
+			for (int n=0;n<CurWorkImg2.length;n++)
+			{
+				nMap[n] = CurWorkImg2[n];
+			}
+
+
+			HoughProcess(CurWorkImg2,nWorkingImgWidth,nWorkingImgHeight, nWorkingRMin, nWorkingRMax, numofmatches,ScoreMatrix);
+
+			Image img = getImageFromArray(nMap,nWorkingImgWidth, nWorkingImgHeight);
+
+
+			String sResults = "<html>Results:<br>";
+
+			sResults +=String.format("<br>nDownScaleFactor=%d", nDownScaleFactor);
+			sResults +=String.format("<br>nWorkingImgWidth=%d, nWorkingImgHeight=%d", nWorkingImgWidth, nWorkingImgHeight);
+
+			int r_x,r_y, x, y;
+			r_x = results[1]*nDownScaleFactor;
+			x = results[5]*nDownScaleFactor;
+			r_y = results[2]*nDownScaleFactor;
+			y = results[6]*nDownScaleFactor;
+			
+			int d1 = (int) Math.sqrt((r_x-x)*(r_x-x) + (r_y-y)*(r_y-y));
+
+			r_x = results[5]*nDownScaleFactor;
+			x = results[9]*nDownScaleFactor;
+			r_y = results[6]*nDownScaleFactor;
+			y = results[10]*nDownScaleFactor;
+						
+			int d2 = (int) Math.sqrt((r_x-x)*(r_x-x) + (r_y-y)*(r_y-y));
+
+			r_x = results[9]*nDownScaleFactor;
+			x = results[1]*nDownScaleFactor;
+			r_y = results[10]*nDownScaleFactor;
+			y = results[2]*nDownScaleFactor;
+			
+			int d3 = (int) Math.sqrt((r_x-x)*(r_x-x) + (r_y-y)*(r_y-y));
+			
+			for(int i=numofmatches-1; i>=0; i--)
+			{
+				drawCircle(0xffff0000, (int)results[i*4+1]*nDownScaleFactor, (int)results[i*4+2]*nDownScaleFactor,(int)results[i*4+3]*nDownScaleFactor,imageSize.width,imageSize.height, rgbPixels);
+				sResults += String.format("<br>%d,%d with radius %d.",results[i*4+1],results[i*4+2],results[i*4+3]);
+			}
+
+			sResults += String.format("<br>d1=%d,d2=%d,d3=%d.",d1,d2,d3);
+			sResults +=String.format("<br>radius_min=%d, radius_max=%d", RadiusMinValue, RadiusMaxValue);
+			
+			drawDottedCircle(0, imageSize.width/2, imageSize.height/2,RadiusMinValue,imageSize.width,imageSize.height, rgbPixels);
+			drawDottedCircle(0, imageSize.width/2, imageSize.height/2,RadiusMaxValue,imageSize.width,imageSize.height, rgbPixels);
+			sResults +="</html>";
+
+			if (jImage==null)
+			{
+				jImage = new JFrame();
+				JLabel label = new JLabel();
+				JLabel lbTxt = new JLabel();
+				jImage.getContentPane().add(label);
+				jImage.getContentPane().add(lbTxt);
+			}
+
+			
+			JLabel label = (JLabel) jImage.getContentPane().getComponent(0);
+			JLabel lbTxt = (JLabel) jImage.getContentPane().getComponent(1);
+			lbTxt.setText(sResults);
+			lbTxt.setSize(nWorkingImgWidth, (int)(nWorkingImgHeight));
+			lbTxt.setVisible(true);
+
+			
+			label.setIcon(new ImageIcon(img));
+			label.setSize(nWorkingImgWidth,nWorkingImgHeight);
+			jImage.setSize(nWorkingImgWidth, (int)(nWorkingImgHeight*2));
+			jImage.setVisible(true);
+
+//			if (j==null)
+//			{
+//				j = new JFrame();
+//				label = new JLabel();
+//				j.getContentPane().add("exMessage", label);
+//			}
+//
+//			label = (JLabel)(j.getContentPane().getComponent(0));
+//			label.setText(sResults);
+//
+//			j.setSize(500, 420);
+//			j.setVisible(true);
+		}
+		catch (Exception e)
+		{
+
+			StringWriter sw = new StringWriter();
+			PrintWriter pw = new PrintWriter(sw);
+			e.printStackTrace(pw);
+			String sStackTrace = sw.toString();
+
+			JLabel label = null; 
+			if (j==null)
+			{
+				j = new JFrame();
+				label = new JLabel();
+				j.getContentPane().add("exMessage", label);
+			}
+
+			label=(JLabel) j.getContentPane().getComponent(0);
+			label.setText("<html>Exception:"+e.toString()+"StackTrace="+sStackTrace.replace("\r","<br>").replace("\n","<br>")+"</html>");
+			j.setSize(1020, 420);
+			label.setSize(new Dimension(1000,400));
+			j.setVisible(true);
+		}
+	}
+	
 
 	private void SobelProcess(byte[] input,int width ,int height ,double[] direction,byte[] output)
 	{
@@ -611,219 +834,361 @@ public class DuncanMaskCollimationHelper implements IFilter
 		return image;
 	}
 
-	private void drawCircle(int pix, int xCenter, int yCenter,int radius, int width, int height, byte[] output) 
+	
+	private void drawCircle(byte nPixVal, int xCenter, int yCenter,int radius, int width, int height, byte[] output) 
 	{
 		//pix = 250;
-		byte nPixVal = (byte)250;
 		int x, y, r2;
 		r2 = radius * radius;
 
-		if ((((yCenter + radius) * width)+xCenter) < output.length) output[((yCenter + radius) * width)+xCenter] = nPixVal;// setPixel(pix, xCenter, yCenter + radius);
-		if (((yCenter - radius) * width)+xCenter>=0) output[((yCenter - radius) * width)+xCenter] = nPixVal;//setPixel(pix, xCenter, yCenter - radius);
-		if ((yCenter * width)+(xCenter + radius)< output.length) output[(yCenter * width)+(xCenter + radius)] = nPixVal;// setPixel(pix, xCenter + radius, yCenter);
-		if ((yCenter * width)+(xCenter - radius)>=0) output[(yCenter * width)+(xCenter - radius)] = nPixVal;//setPixel(pix, xCenter - radius, yCenter);
+		// this is exact S
+		if ((((yCenter + radius) * width)+xCenter) < output.length) output[((yCenter + radius) * width)+xCenter] = nPixVal;
+		if ((((yCenter + radius-1) * width)+xCenter) < output.length) output[((yCenter + radius-1) * width)+xCenter] = nPixVal;
+		
+		// this is exact W
+		if (((yCenter - radius) * width)+xCenter>=0) output[((yCenter - radius) * width)+xCenter] = nPixVal;
+		if (((yCenter - radius+1) * width)+xCenter>=0) output[((yCenter - radius+1) * width)+xCenter] = nPixVal;
 
-		y = radius;
+		// this is exact E
+		if ((yCenter * width)+(xCenter + radius)< output.length) output[(yCenter * width)+(xCenter + radius)] = nPixVal;
+		if ((yCenter * width)+(xCenter + radius-1)< output.length) output[(yCenter * width)+(xCenter + radius-1)] = nPixVal;
+		
+		// this is exact N
+		if ((yCenter * width)+(xCenter - radius)>=0) output[(yCenter * width)+(xCenter - radius)] = nPixVal;
+		if ((yCenter * width)+(xCenter - radius+1)>=0) output[(yCenter * width)+(xCenter - radius+1)] = nPixVal;
+		
+
+		//y = radius;
+		
 		x = 1;
 		y = (int) (Math.sqrt(r2 - 1) + 0.5);
-
+		// start drawing at 90 degree (top side)
+		
 		while (x < y) 
 		{
-			if (((yCenter + y) * width)+(xCenter + x)<output.length) output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter + y);
-			if (((yCenter - y) * width)+(xCenter + x)>=0) output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter - y);
-			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter + y);
-			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter - y);
-			if (((yCenter + x) * width)+(xCenter + y)<output.length) output[((yCenter + x) * width)+(xCenter + y)] = nPixVal;//setPixel(pix, xCenter + y, yCenter + x);
-			if (((yCenter - x) * width)+(xCenter + y)>=0) output[((yCenter - x) * width)+(xCenter + y)] = nPixVal;//setPixel(pix, xCenter + y, yCenter - x);
-			if (((yCenter + x) * width)+(xCenter - y)<output.length) output[((yCenter + x) * width)+(xCenter - y)] = nPixVal;//setPixel(pix, xCenter - y, yCenter + x);
-			if (((yCenter - x) * width)+(xCenter - y)>=0) output[((yCenter - x) * width)+(xCenter - y)] = nPixVal;//setPixel(pix, xCenter - y, yCenter - x);
-			x += 1;
+			// this starts from S side to SE
+			if (((yCenter + y) * width)+(xCenter + x)<output.length) output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;
+			if (((yCenter + y-1) * width)+(xCenter + x)<output.length) output[((yCenter + y-1) * width)+(xCenter + x)] = nPixVal;
+
+			// this starts from N side to NE
+			if (((yCenter - y) * width)+(xCenter + x)>=0) output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;
+			if (((yCenter - y+1) * width)+(xCenter + x)>=0) output[((yCenter - y+1) * width)+(xCenter + x)] = nPixVal;
+
+			// this starts from S side to SW
+			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;
+			if (((yCenter + y-1) * width)+(xCenter - x)<output.length) output[((yCenter + y-1) * width)+(xCenter - x)] = nPixVal;
+			
+			// this starts from N side to NW
+			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;
+			if (((yCenter - y+1) * width)+(xCenter - x)>=0) output[((yCenter - y+1) * width)+(xCenter - x)] = nPixVal;
+			
+			// this starts from E side to SE
+			if (((yCenter + x) * width)+(xCenter + y)<output.length) output[((yCenter + x) * width)+(xCenter + y)] = nPixVal;
+			if (((yCenter + x) * width)+(xCenter + y-1)<output.length) output[((yCenter + x) * width)+(xCenter + y-1)] = nPixVal;
+			
+			// this starts from E side to NE			
+			if (((yCenter - x) * width)+(xCenter + y)>=0) output[((yCenter - x) * width)+(xCenter + y)] = nPixVal;
+			if (((yCenter - x) * width)+(xCenter + y-1)>=0) output[((yCenter - x) * width)+(xCenter + y-1)] = nPixVal;
+			
+			// this starts from W side to SW
+			if (((yCenter + x) * width)+(xCenter - y)<output.length) output[((yCenter + x) * width)+(xCenter - y)] = nPixVal;
+			if (((yCenter + x) * width)+(xCenter - y+1)<output.length) output[((yCenter + x) * width)+(xCenter - y+1)] = nPixVal;
+			
+			// this starts from W side to NW
+			if (((yCenter - x) * width)+(xCenter - y)>=0) output[((yCenter - x) * width)+(xCenter - y)] = nPixVal;
+			if (((yCenter - x) * width)+(xCenter - y+1)>=0) output[((yCenter - x) * width)+(xCenter - y+1)] = nPixVal;
+			
+			x++;
 			y = (int) (Math.sqrt(r2 - x*x) + 0.5);
 		}
 
 		if (x == y) 
 		{
-			if (((yCenter + y) * width)+(xCenter + x)<output.length) output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter + y);
-			if (((yCenter - y) * width)+(xCenter + x)>=0) output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter - y);
-			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter + y);
-			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter - y);
+			// this is exact SE
+			if (((yCenter + y) * width)+(xCenter + x)<output.length) output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;
+			if (((yCenter + y-1) * width)+(xCenter + x-1)<output.length) output[((yCenter + y-1) * width)+(xCenter + x-1)] = nPixVal;
+			
+			// this is exact NE
+			if (((yCenter - y) * width)+(xCenter + x)>=0) output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;
+			if (((yCenter - y-1) * width)+(xCenter + x-1)>=0) output[((yCenter - y-1) * width)+(xCenter + x-1)] = nPixVal;
+			
+			// this is exact SW 
+			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;
+			if (((yCenter + y-1) * width)+(xCenter - x+1)<output.length) output[((yCenter + y-1) * width)+(xCenter - x+1)] = nPixVal;
+			
+			// this is exact NW
+			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;
+			if (((yCenter - y-1) * width)+(xCenter - x+1)>=0) output[((yCenter - y-1) * width)+(xCenter - x+1)] = nPixVal;
 		}
 	}
 	
-	
-	private void drawCircle(int pix, int xCenter, int yCenter,int radius, int width, int height, int[] output) 
+
+	private void drawDottedCircle(int pix, int xCenter, int yCenter,int radius, int width, int height, int[] output) 
 	{
 		//pix = 250;
 		int nPixVal = 0xffff0000;
 		int x, y, r2;
 		r2 = radius * radius;
 
-		if ((((yCenter + radius) * width)+xCenter) < output.length) output[((yCenter + radius) * width)+xCenter] = nPixVal;// setPixel(pix, xCenter, yCenter + radius);
-		if (((yCenter - radius) * width)+xCenter>=0) output[((yCenter - radius) * width)+xCenter] = nPixVal;//setPixel(pix, xCenter, yCenter - radius);
-		if ((yCenter * width)+(xCenter + radius)< output.length) output[(yCenter * width)+(xCenter + radius)] = nPixVal;// setPixel(pix, xCenter + radius, yCenter);
-		if ((yCenter * width)+(xCenter - radius)>=0) output[(yCenter * width)+(xCenter - radius)] = nPixVal;//setPixel(pix, xCenter - radius, yCenter);
+		// this is exact S
+		if ((((yCenter + radius) * width)+xCenter) < output.length) output[((yCenter + radius) * width)+xCenter] = nPixVal;
+		if ((((yCenter + radius-1) * width)+xCenter) < output.length) output[((yCenter + radius-1) * width)+xCenter] = nPixVal;
+		
+		// this is exact W
+		if (((yCenter - radius) * width)+xCenter>=0) output[((yCenter - radius) * width)+xCenter] = nPixVal;
+		if (((yCenter - radius+1) * width)+xCenter>=0) output[((yCenter - radius+1) * width)+xCenter] = nPixVal;
 
-		y = radius;
+		// this is exact E
+		if ((yCenter * width)+(xCenter + radius)< output.length) output[(yCenter * width)+(xCenter + radius)] = nPixVal;
+		if ((yCenter * width)+(xCenter + radius-1)< output.length) output[(yCenter * width)+(xCenter + radius-1)] = nPixVal;
+		
+		// this is exact N
+		if ((yCenter * width)+(xCenter - radius)>=0) output[(yCenter * width)+(xCenter - radius)] = nPixVal;
+		if ((yCenter * width)+(xCenter - radius+1)>=0) output[(yCenter * width)+(xCenter - radius+1)] = nPixVal;
+		
+
+		//y = radius;
+		
 		x = 1;
 		y = (int) (Math.sqrt(r2 - 1) + 0.5);
-
+		// start drawing at 90 degree (top side)
+		
 		while (x < y) 
 		{
-			if (((yCenter + y) * width)+(xCenter + x)<output.length) output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter + y);
-			if (((yCenter - y) * width)+(xCenter + x)>=0) output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter - y);
-			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter + y);
-			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter - y);
-			if (((yCenter + x) * width)+(xCenter + y)<output.length) output[((yCenter + x) * width)+(xCenter + y)] = nPixVal;//setPixel(pix, xCenter + y, yCenter + x);
-			if (((yCenter - x) * width)+(xCenter + y)>=0) output[((yCenter - x) * width)+(xCenter + y)] = nPixVal;//setPixel(pix, xCenter + y, yCenter - x);
-			if (((yCenter + x) * width)+(xCenter - y)<output.length) output[((yCenter + x) * width)+(xCenter - y)] = nPixVal;//setPixel(pix, xCenter - y, yCenter + x);
-			if (((yCenter - x) * width)+(xCenter - y)>=0) output[((yCenter - x) * width)+(xCenter - y)] = nPixVal;//setPixel(pix, xCenter - y, yCenter - x);
-			x += 1;
+			// this starts from S side to SE
+			if (((yCenter + y) * width)+(xCenter + x)<output.length) output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;
+			if (((yCenter + y-1) * width)+(xCenter + x)<output.length) output[((yCenter + y-1) * width)+(xCenter + x)] = nPixVal;
+
+			// this starts from N side to NE
+			if (((yCenter - y) * width)+(xCenter + x)>=0) output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;
+			if (((yCenter - y+1) * width)+(xCenter + x)>=0) output[((yCenter - y+1) * width)+(xCenter + x)] = nPixVal;
+
+			// this starts from S side to SW
+			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;
+			if (((yCenter + y-1) * width)+(xCenter - x)<output.length) output[((yCenter + y-1) * width)+(xCenter - x)] = nPixVal;
+			
+			// this starts from N side to NW
+			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;
+			if (((yCenter - y+1) * width)+(xCenter - x)>=0) output[((yCenter - y+1) * width)+(xCenter - x)] = nPixVal;
+			
+			// this starts from E side to SE
+			if (((yCenter + x) * width)+(xCenter + y)<output.length) output[((yCenter + x) * width)+(xCenter + y)] = nPixVal;
+			if (((yCenter + x) * width)+(xCenter + y-1)<output.length) output[((yCenter + x) * width)+(xCenter + y-1)] = nPixVal;
+			
+			// this starts from E side to NE			
+			if (((yCenter - x) * width)+(xCenter + y)>=0) output[((yCenter - x) * width)+(xCenter + y)] = nPixVal;
+			if (((yCenter - x) * width)+(xCenter + y-1)>=0) output[((yCenter - x) * width)+(xCenter + y-1)] = nPixVal;
+			
+			// this starts from W side to SW
+			if (((yCenter + x) * width)+(xCenter - y)<output.length) output[((yCenter + x) * width)+(xCenter - y)] = nPixVal;
+			if (((yCenter + x) * width)+(xCenter - y+1)<output.length) output[((yCenter + x) * width)+(xCenter - y+1)] = nPixVal;
+			
+			// this starts from W side to NW
+			if (((yCenter - x) * width)+(xCenter - y)>=0) output[((yCenter - x) * width)+(xCenter - y)] = nPixVal;
+			if (((yCenter - x) * width)+(xCenter - y+1)>=0) output[((yCenter - x) * width)+(xCenter - y+1)] = nPixVal;
+			
+			x+=6;
 			y = (int) (Math.sqrt(r2 - x*x) + 0.5);
 		}
 
 		if (x == y) 
 		{
-			if (((yCenter + y) * width)+(xCenter + x)<output.length) output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter + y);
-			if (((yCenter - y) * width)+(xCenter + x)>=0) output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;//setPixel(pix, xCenter + x, yCenter - y);
-			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter + y);
-			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;//setPixel(pix, xCenter - x, yCenter - y);
+			// this is exact SE
+			if (((yCenter + y) * width)+(xCenter + x)<output.length) output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;
+			if (((yCenter + y-1) * width)+(xCenter + x-1)<output.length) output[((yCenter + y-1) * width)+(xCenter + x-1)] = nPixVal;
+			
+			// this is exact NE
+			if (((yCenter - y) * width)+(xCenter + x)>=0) output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;
+			if (((yCenter - y-1) * width)+(xCenter + x-1)>=0) output[((yCenter - y-1) * width)+(xCenter + x-1)] = nPixVal;
+			
+			// this is exact SW 
+			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;
+			if (((yCenter + y-1) * width)+(xCenter - x+1)<output.length) output[((yCenter + y-1) * width)+(xCenter - x+1)] = nPixVal;
+			
+			// this is exact NW
+			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;
+			if (((yCenter - y-1) * width)+(xCenter - x+1)>=0) output[((yCenter - y-1) * width)+(xCenter - x+1)] = nPixVal;
 		}
 	}
+	
 
-
-	@Override
-	public void computeColor(int[] rgbPixels, Rectangle imageSize, CamInfo info) 
+	private void drawDottedCircle(int pix, int xCenter, int yCenter,int radius, int width, int height, byte[] output) 
 	{
-		try
+		//pix = 250;
+		byte nPixVal = (byte)250;
+		int x, y, r2;
+		r2 = radius * radius;
+
+		// this is exact S
+		if ((((yCenter + radius) * width)+xCenter) < output.length) output[((yCenter + radius) * width)+xCenter] = nPixVal;
+		if ((((yCenter + radius-1) * width)+xCenter) < output.length) output[((yCenter + radius-1) * width)+xCenter] = nPixVal;
+		
+		// this is exact W
+		if (((yCenter - radius) * width)+xCenter>=0) output[((yCenter - radius) * width)+xCenter] = nPixVal;
+		if (((yCenter - radius+1) * width)+xCenter>=0) output[((yCenter - radius+1) * width)+xCenter] = nPixVal;
+
+		// this is exact E
+		if ((yCenter * width)+(xCenter + radius)< output.length) output[(yCenter * width)+(xCenter + radius)] = nPixVal;
+		if ((yCenter * width)+(xCenter + radius-1)< output.length) output[(yCenter * width)+(xCenter + radius-1)] = nPixVal;
+		
+		// this is exact N
+		if ((yCenter * width)+(xCenter - radius)>=0) output[(yCenter * width)+(xCenter - radius)] = nPixVal;
+		if ((yCenter * width)+(xCenter - radius+1)>=0) output[(yCenter * width)+(xCenter - radius+1)] = nPixVal;
+		
+
+		//y = radius;
+		
+		x = 1;
+		y = (int) (Math.sqrt(r2 - 1) + 0.5);
+		// start drawing at 90 degree (top side)
+		
+		while (x < y) 
 		{
-			int nTargetWorkingImgDimension = 200;
+			// this starts from S side to SE
+			if (((yCenter + y) * width)+(xCenter + x)<output.length) output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;
+			if (((yCenter + y-1) * width)+(xCenter + x)<output.length) output[((yCenter + y-1) * width)+(xCenter + x)] = nPixVal;
 
-			int radius_min=80;
-			int radius_max=140;
+			// this starts from N side to NE
+			if (((yCenter - y) * width)+(xCenter + x)>=0) output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;
+			if (((yCenter - y+1) * width)+(xCenter + x)>=0) output[((yCenter - y+1) * width)+(xCenter + x)] = nPixVal;
 
-			int nWorkingRMin = radius_min;
-			int nWorkingRMax = radius_max;
-
-			int numofmatches=3;
-			byte[] bytePixels = new byte[rgbPixels.length];
-
-			int nWorkingTotalImgLen = bytePixels.length;
-			if (imageSize.width!=(nWorkingImgWidth*nDownScaleFactor) || imageSize.height!=(nWorkingImgHeight*nDownScaleFactor) )
-			{
-				nDownScaleFactor = Math.max(1,Math.min(imageSize.width, imageSize.height)/nTargetWorkingImgDimension);
-				nWorkingTotalImgLen = bytePixels.length/nDownScaleFactor;
-
-				Direction = new double[nWorkingTotalImgLen];
-				OrigImg = new byte[bytePixels.length];
-				CurWorkImg1 = new byte[nWorkingTotalImgLen];
-				CurWorkImg2 = new byte[nWorkingTotalImgLen];
-				nWorkingImgWidth = imageSize.width/nDownScaleFactor;
-				nWorkingImgHeight = imageSize.height/nDownScaleFactor;
-				nWorkingRMin = radius_min/nDownScaleFactor;
-				nWorkingRMax = Math.max(nWorkingRMin+1,radius_max/nDownScaleFactor);
-				results = new int[numofmatches*4];
-			}
-
+			// this starts from S side to SW
+			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;
+			if (((yCenter + y-1) * width)+(xCenter - x)<output.length) output[((yCenter + y-1) * width)+(xCenter - x)] = nPixVal;
 			
-
-			ScoreMatrix = new int[nWorkingRMax-nWorkingRMin][nWorkingTotalImgLen];
-			//MaxMatrix = new long[nWorkingRMax-nWorkingRMin];
-
-			for (int n=0;n<rgbPixels.length;n++)
-			{
-				bytePixels[n] = (byte) getGrayScale(rgbPixels[n]);
-			}
+			// this starts from N side to NW
+			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;
+			if (((yCenter - y+1) * width)+(xCenter - x)>=0) output[((yCenter - y+1) * width)+(xCenter - x)] = nPixVal;
 			
-			for (int x=0;x<imageSize.width;x++)
-			{
-				for (int y=0;y<imageSize.height;y++)
-				{
-					OrigImg[y*imageSize.width+x] = ((x/2%radius_min==0 && x/2/radius_min==1) || (x/2%radius_max==0 && x/2/radius_max==1) || (y/2%radius_max==0 && y/2/radius_max==1) ||(y/2%radius_min==0 && y/2/radius_min==1))?(byte)255: bytePixels[y*imageSize.width+x];
-					CurWorkImg1[(y/nDownScaleFactor*nWorkingImgWidth)+(x/nDownScaleFactor)] = bytePixels[y*imageSize.width+x];
-				}
-			}
-
-			//			gaussianFilter gaussianObject = new gaussianFilter();
-			//			gaussianObject.init(CurWorkImg1, CurWorkImg2, 3,5,nWorkingImgWidth, nWorkingImgHeight);
-			//			gaussianObject.generateTemplate();
-			//			gaussianObject.process();
-
-
-
-			//			sobel sobelObject = new sobel();
-			//			sobelObject.init(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight,Direction,CurWorkImg2);
-			SobelProcess(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight,Direction,CurWorkImg2);
-
-			//			nonMaxSuppression nonMaxSuppressionObject = new nonMaxSuppression(); 
-			//			nonMaxSuppressionObject.init(CurWorkImg2,Direction,nWorkingImgWidth,nWorkingImgHeight, CurWorkImg1);
-			//			nonMaxSuppressionObject.process2();
-			NonMaxSuppressionProcess(CurWorkImg2,Direction,nWorkingImgWidth,nWorkingImgHeight, CurWorkImg1);
-
-			byte[] nMap = new byte[CurWorkImg1.length];
-			nHystStackSize = 0;
-			nHystMaxLen = (int) (2*Math.PI * Math.min(nWorkingImgWidth,nWorkingImgHeight)/2);
-
-			//			hystThresh hystThreshObject = new hystThresh();
-			//			hystThreshObject.init(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight, (byte)10,(byte)20,CurWorkImg2);
-			//			hystThreshObject.process();
-			hystThreshProcess(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight, (byte)10,(byte)20,CurWorkImg2);
-
-			for (int n=0;n<CurWorkImg2.length;n++)
-			{
-				nMap[n] = CurWorkImg2[n];
-			}
-
-
-			HoughProcess(CurWorkImg2,nWorkingImgWidth,nWorkingImgHeight, nWorkingRMin, nWorkingRMax, numofmatches,ScoreMatrix);
-
-			Image img = getImageFromArray(nMap,nWorkingImgWidth, nWorkingImgHeight);
-
-
-			String sResults = "<html>";
-			for(int i=numofmatches-1; i>=0; i--)
-			{
-				drawCircle((int)results[i*4], (int)results[i*4+1]*nDownScaleFactor, (int)results[i*4+2]*nDownScaleFactor,(int)results[i*4+3]*nDownScaleFactor,imageSize.width,imageSize.height, rgbPixels);
-			}
-			sResults +="</html>";
-
-			if (jImage==null)
-			{
-				jImage = new JFrame();
-				JLabel label = new JLabel();
-				jImage.getContentPane().add(label);
-			}
-
-			JLabel label = (JLabel) jImage.getContentPane().getComponent(0);
-			label.setIcon(new ImageIcon(img));
-			label.setSize(nWorkingImgWidth,nWorkingImgHeight);
-			jImage.setSize(nWorkingImgWidth, nWorkingImgHeight);
-			jImage.setVisible(true);
-
-
+			// this starts from E side to SE
+			if (((yCenter + x) * width)+(xCenter + y)<output.length) output[((yCenter + x) * width)+(xCenter + y)] = nPixVal;
+			if (((yCenter + x) * width)+(xCenter + y-1)<output.length) output[((yCenter + x) * width)+(xCenter + y-1)] = nPixVal;
+			
+			// this starts from E side to NE			
+			if (((yCenter - x) * width)+(xCenter + y)>=0) output[((yCenter - x) * width)+(xCenter + y)] = nPixVal;
+			if (((yCenter - x) * width)+(xCenter + y-1)>=0) output[((yCenter - x) * width)+(xCenter + y-1)] = nPixVal;
+			
+			// this starts from W side to SW
+			if (((yCenter + x) * width)+(xCenter - y)<output.length) output[((yCenter + x) * width)+(xCenter - y)] = nPixVal;
+			if (((yCenter + x) * width)+(xCenter - y+1)<output.length) output[((yCenter + x) * width)+(xCenter - y+1)] = nPixVal;
+			
+			// this starts from W side to NW
+			if (((yCenter - x) * width)+(xCenter - y)>=0) output[((yCenter - x) * width)+(xCenter - y)] = nPixVal;
+			if (((yCenter - x) * width)+(xCenter - y+1)>=0) output[((yCenter - x) * width)+(xCenter - y+1)] = nPixVal;
+			
+			x+=6;
+			y = (int) (Math.sqrt(r2 - x*x) + 0.5);
 		}
-		catch (Exception e)
+
+		if (x == y) 
 		{
-
-			StringWriter sw = new StringWriter();
-			PrintWriter pw = new PrintWriter(sw);
-			e.printStackTrace(pw);
-			String sStackTrace = sw.toString();
-
-			JLabel label = null; 
-			if (j==null)
-			{
-				j = new JFrame();
-				label = new JLabel();
-				j.getContentPane().add("exMessage", label);
-			}
-
-			label=(JLabel) j.getContentPane().getComponent(0);
-			label.setText("<html>Exception:"+e.toString()+"StackTrace="+sStackTrace.replace("\r","<br>").replace("\n","<br>")+"</html>");
-			j.setSize(1020, 420);
-			label.setSize(new Dimension(1000,400));
-			j.setVisible(true);
+			// this is exact SE
+			if (((yCenter + y) * width)+(xCenter + x)<output.length) output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;
+			if (((yCenter + y-1) * width)+(xCenter + x-1)<output.length) output[((yCenter + y-1) * width)+(xCenter + x-1)] = nPixVal;
+			
+			// this is exact NE
+			if (((yCenter - y) * width)+(xCenter + x)>=0) output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;
+			if (((yCenter - y-1) * width)+(xCenter + x-1)>=0) output[((yCenter - y-1) * width)+(xCenter + x-1)] = nPixVal;
+			
+			// this is exact SW 
+			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;
+			if (((yCenter + y-1) * width)+(xCenter - x+1)<output.length) output[((yCenter + y-1) * width)+(xCenter - x+1)] = nPixVal;
+			
+			// this is exact NW
+			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;
+			if (((yCenter - y-1) * width)+(xCenter - x+1)>=0) output[((yCenter - y-1) * width)+(xCenter - x+1)] = nPixVal;
 		}
 	}
+	
+	private void drawCircle(int nPixVal, int xCenter, int yCenter,int radius, int width, int height, int[] output) 
+	{
+		//pix = 250;
+//		int nPixVal = 0xffff0000;
+		int x, y, r2;
+		r2 = radius * radius;
+
+		// this is exact S
+		if ((((yCenter + radius) * width)+xCenter) < output.length) output[((yCenter + radius) * width)+xCenter] = nPixVal;
+		if ((((yCenter + radius-1) * width)+xCenter) < output.length) output[((yCenter + radius-1) * width)+xCenter] = nPixVal;
+		
+		// this is exact W
+		if (((yCenter - radius) * width)+xCenter>=0) output[((yCenter - radius) * width)+xCenter] = nPixVal;
+		if (((yCenter - radius+1) * width)+xCenter>=0) output[((yCenter - radius+1) * width)+xCenter] = nPixVal;
+
+		// this is exact E
+		if ((yCenter * width)+(xCenter + radius)< output.length) output[(yCenter * width)+(xCenter + radius)] = nPixVal;
+		if ((yCenter * width)+(xCenter + radius-1)< output.length) output[(yCenter * width)+(xCenter + radius-1)] = nPixVal;
+		
+		// this is exact N
+		if ((yCenter * width)+(xCenter - radius)>=0) output[(yCenter * width)+(xCenter - radius)] = nPixVal;
+		if ((yCenter * width)+(xCenter - radius+1)>=0) output[(yCenter * width)+(xCenter - radius+1)] = nPixVal;
+		
+
+		//y = radius;
+		
+		x = 1;
+		y = (int) (Math.sqrt(r2 - 1) + 0.5);
+		// start drawing at 90 degree (top side)
+		
+		while (x < y) 
+		{
+			// this starts from S side to SE
+			if (((yCenter + y) * width)+(xCenter + x)<output.length) output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;
+			if (((yCenter + y-1) * width)+(xCenter + x)<output.length) output[((yCenter + y-1) * width)+(xCenter + x)] = nPixVal;
+
+			// this starts from N side to NE
+			if (((yCenter - y) * width)+(xCenter + x)>=0) output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;
+			if (((yCenter - y+1) * width)+(xCenter + x)>=0) output[((yCenter - y+1) * width)+(xCenter + x)] = nPixVal;
+
+			// this starts from S side to SW
+			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;
+			if (((yCenter + y-1) * width)+(xCenter - x)<output.length) output[((yCenter + y-1) * width)+(xCenter - x)] = nPixVal;
+			
+			// this starts from N side to NW
+			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;
+			if (((yCenter - y+1) * width)+(xCenter - x)>=0) output[((yCenter - y+1) * width)+(xCenter - x)] = nPixVal;
+			
+			// this starts from E side to SE
+			if (((yCenter + x) * width)+(xCenter + y)<output.length) output[((yCenter + x) * width)+(xCenter + y)] = nPixVal;
+			if (((yCenter + x) * width)+(xCenter + y-1)<output.length) output[((yCenter + x) * width)+(xCenter + y-1)] = nPixVal;
+			
+			// this starts from E side to NE			
+			if (((yCenter - x) * width)+(xCenter + y)>=0) output[((yCenter - x) * width)+(xCenter + y)] = nPixVal;
+			if (((yCenter - x) * width)+(xCenter + y-1)>=0) output[((yCenter - x) * width)+(xCenter + y-1)] = nPixVal;
+			
+			// this starts from W side to SW
+			if (((yCenter + x) * width)+(xCenter - y)<output.length) output[((yCenter + x) * width)+(xCenter - y)] = nPixVal;
+			if (((yCenter + x) * width)+(xCenter - y+1)<output.length) output[((yCenter + x) * width)+(xCenter - y+1)] = nPixVal;
+			
+			// this starts from W side to NW
+			if (((yCenter - x) * width)+(xCenter - y)>=0) output[((yCenter - x) * width)+(xCenter - y)] = nPixVal;
+			if (((yCenter - x) * width)+(xCenter - y+1)>=0) output[((yCenter - x) * width)+(xCenter - y+1)] = nPixVal;
+			
+			x++;
+			y = (int) (Math.sqrt(r2 - x*x) + 0.5);
+		}
+
+		if (x == y) 
+		{
+			// this is exact SE
+			if (((yCenter + y) * width)+(xCenter + x)<output.length) output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;
+			if (((yCenter + y-1) * width)+(xCenter + x-1)<output.length) output[((yCenter + y-1) * width)+(xCenter + x-1)] = nPixVal;
+			
+			// this is exact NE
+			if (((yCenter - y) * width)+(xCenter + x)>=0) output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;
+			if (((yCenter - y-1) * width)+(xCenter + x-1)>=0) output[((yCenter - y-1) * width)+(xCenter + x-1)] = nPixVal;
+			
+			// this is exact SW 
+			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;
+			if (((yCenter + y-1) * width)+(xCenter - x+1)<output.length) output[((yCenter + y-1) * width)+(xCenter - x+1)] = nPixVal;
+			
+			// this is exact NW
+			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;
+			if (((yCenter - y-1) * width)+(xCenter - x+1)>=0) output[((yCenter - y-1) * width)+(xCenter - x+1)] = nPixVal;
+		}
+	}
+
+
 
 	private int getGrayScale(int rgb)
 	{
