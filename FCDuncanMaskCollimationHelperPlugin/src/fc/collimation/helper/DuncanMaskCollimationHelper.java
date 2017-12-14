@@ -1,8 +1,11 @@
 package fc.collimation.helper;
+import java.awt.Color;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Image;
 import java.awt.Rectangle;
+import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.WritableRaster;
 import java.io.PrintWriter;
@@ -10,6 +13,8 @@ import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.Properties;
 
+import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -30,7 +35,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 	static int nWorkingImgHeight=0;
 	static int nWorkingRMin;
 	static int nWorkingRMax;
-	
+
 	static byte[] OrigImg;
 	static byte[] CurWorkImg1;
 	static byte[] CurWorkImg2;
@@ -43,14 +48,14 @@ public class DuncanMaskCollimationHelper implements IFilter
 	static double[] sintable = null;
 	static int nHystStackSize = 0;
 	static int nHystMaxLen = 0;
-	static int nTargetWorkingImgDimension = 300;
-	
+	static int nTargetWorkingImgDimension = 400;
+
 	static int RadiusMinValue=10;
 	static int RadiusMaxValue=20;
-	
+
 	static int nObjectRadius = 100;
-	
-	
+
+
 	static
 	{
 		costable = new double[360];
@@ -127,10 +132,10 @@ public class DuncanMaskCollimationHelper implements IFilter
 	public void sliderValueChanged(int value) 
 	{
 		// TODO Auto-generated method stub
-		nObjectRadius = value * 5;
+		nObjectRadius = Math.max(1,value) * 5;
 
-		RadiusMinValue= (int) (nObjectRadius * 0.8);
-		RadiusMaxValue= (int) (nObjectRadius * 1.2);
+		RadiusMinValue= (int) (nObjectRadius * 0.9);
+		RadiusMaxValue= (int) (nObjectRadius * 1.1);
 
 		nWorkingRMin = RadiusMinValue/nDownScaleFactor;
 		nWorkingRMax = Math.max(nWorkingRMin+1,RadiusMaxValue/nDownScaleFactor);
@@ -199,7 +204,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 				results = new int[numofmatches*4];
 			}
 
-			
+
 
 			ScoreMatrix = new int[nWorkingRMax-nWorkingRMin][nWorkingTotalImgLen];
 			//MaxMatrix = new long[nWorkingRMax-nWorkingRMin];
@@ -252,14 +257,14 @@ public class DuncanMaskCollimationHelper implements IFilter
 
 			HoughProcess(CurWorkImg2,nWorkingImgWidth,nWorkingImgHeight, nWorkingRMin, nWorkingRMax, numofmatches,ScoreMatrix);
 
-//			int nAccTotal = 0;
-//			for (int n=0;n<ScoreMatrix.length;n++)
-//			{
-//				for (int m=0;m<ScoreMatrix[n].length;m++)
-//				{
-//					nAccTotal +=ScoreMatrix[n][m];
-//				}
-//			}
+			//			int nAccTotal = 0;
+			//			for (int n=0;n<ScoreMatrix.length;n++)
+			//			{
+			//				for (int m=0;m<ScoreMatrix[n].length;m++)
+			//				{
+			//					nAccTotal +=ScoreMatrix[n][m];
+			//				}
+			//			}
 
 
 			//			long nMax = MaxMatrix[0];
@@ -286,7 +291,6 @@ public class DuncanMaskCollimationHelper implements IFilter
 			//				OrigImg[n] = CurWorkImg1[n];
 			//			}
 
-			String sResults = "<html>Results:<br>";
 
 			int r_x,r_y, x, y;
 			r_x = results[5]*nDownScaleFactor;
@@ -299,7 +303,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 			x = results[13]*nDownScaleFactor;
 			r_y = results[10]*nDownScaleFactor;
 			y = results[14]*nDownScaleFactor;
-			
+
 			int d2 = (int) Math.sqrt((r_x-x)*(r_x-x) + (r_y-y)*(r_y-y));
 
 			r_x = results[13]*nDownScaleFactor;
@@ -308,78 +312,63 @@ public class DuncanMaskCollimationHelper implements IFilter
 			y = results[6]*nDownScaleFactor;
 
 			int d3 = (int) Math.sqrt((r_x-x)*(r_x-x) + (r_y-y)*(r_y-y));
-			
+
+			String sResults = "<html>";
+			sResults +=String.format("<br>nDownScaleFactor=%d, nWorkingImgWidth=%d, nWorkingImgHeight=%d<br>", nDownScaleFactor, nWorkingImgWidth, nWorkingImgHeight);
 			for(int i=numofmatches-1; i>=0; i--)
 			{
 				drawCircle((byte)255, (int)results[i*4+1]*nDownScaleFactor, (int)results[i*4+2]*nDownScaleFactor,(int)results[i*4+3]*nDownScaleFactor,imageSize.width,imageSize.height, bytePixels);
-				sResults += String.format("<br>%d,%d with radius %d.",results[i*4+1],results[i*4+2],results[i*4+3]);
+				sResults += String.format("Circle %d at (%d,%d) with radius %d. ",i,results[i*4+1],results[i*4+2],results[i*4+3]);
 			}
+			sResults += String.format("<br>d1=%d,d2=%d,d3=%d.",d1,d2,d3);
+			sResults +=String.format("<br>radius_min=%d, radius_max=%d", RadiusMinValue, RadiusMaxValue);
+			sResults +="</html>";
 
 			drawDottedCircle(0, imageSize.width/2, imageSize.height/2,RadiusMinValue,imageSize.width,imageSize.height, bytePixels);
 			drawDottedCircle(0, imageSize.width/2, imageSize.height/2,RadiusMaxValue,imageSize.width,imageSize.height, bytePixels);
-			sResults += String.format("<br>d1=%d,d2=%d,d3=%d.",d1,d2,d3);
-			sResults +="</html>";
 
-			if (jImage==null)
-			{
-				jImage = new JFrame();
-				JLabel label = new JLabel();
-				JLabel lbTxt = new JLabel();
-				jImage.getContentPane().add(label);
-				jImage.getContentPane().add(lbTxt);
-			}
+			ShowImageWindowFrame(sResults, img);
 
-			JLabel label = (JLabel) jImage.getContentPane().getComponent(0);
-			JLabel lbTxt = (JLabel) jImage.getContentPane().getComponent(1);
-			lbTxt.setText(sResults);
-			lbTxt.setSize(nWorkingImgWidth, (int)(nWorkingImgHeight*0.5));
-			
-			label.setIcon(new ImageIcon(img));
-			label.setSize(nWorkingImgWidth,nWorkingImgHeight);
-			jImage.setSize(nWorkingImgWidth, (int)(nWorkingImgHeight*1.5));
-			jImage.setVisible(true);
-
-
-			if (j==null)
-			{
-				j = new JFrame();
-				label = new JLabel();
-				j.getContentPane().add("exMessage", label);
-			}
-
-			label = (JLabel)(j.getContentPane().getComponent(0));
-			label.setText(sResults);
-
-			j.setSize(500, 420);
-			j.setVisible(true);
+			//			if (j==null)
+			//			{
+			//				j = new JFrame();
+			//				label = new JLabel();
+			//				j.getContentPane().add("exMessage", label);
+			//			}
+			//
+			//			label = (JLabel)(j.getContentPane().getComponent(0));
+			//			label.setText(sResults);
+			//
+			//			j.setSize(500, 420);
+			//			j.setVisible(true);
 		}
 		catch (Exception e)
 		{
 
-			StringWriter sw = new StringWriter();
-			PrintWriter pw = new PrintWriter(sw);
-			e.printStackTrace(pw);
-			String sStackTrace = sw.toString();
-
-			JLabel label = null; 
-			if (j==null)
-			{
-				j = new JFrame();
-				label = new JLabel();
-				j.getContentPane().add("exMessage", label);
-			}
-
-			label=(JLabel) j.getContentPane().getComponent(0);
-			label.setText("<html>Exception:"+e.toString()+"StackTrace="+sStackTrace.replace("\r","<br>").replace("\n","<br>")+"</html>");
-			j.setSize(1020, 420);
-			label.setSize(new Dimension(1000,400));
-			j.setVisible(true);
+			//			StringWriter sw = new StringWriter();
+			//			PrintWriter pw = new PrintWriter(sw);
+			//			e.printStackTrace(pw);
+			//			String sStackTrace = sw.toString();
+			//
+			//			JLabel label = null; 
+			//			if (j==null)
+			//			{
+			//				j = new JFrame();
+			//				label = new JLabel();
+			//				j.getContentPane().add("exMessage", label);
+			//			}
+			//
+			//			label=(JLabel) j.getContentPane().getComponent(0);
+			//			label.setText("<html>Exception:"+e.toString()+"<br>StackTrace="+sStackTrace.substring(4000).replace("\r","<br>").replace("\n","<br>")+"</html>");
+			//			j.setSize(1200, 420);
+			//			label.setSize(new Dimension(1200,400));
+			//			j.setVisible(true);
 		}
 
-//		for (int n=0;n<bytePixels.length;n++)
-//		{
-//			bytePixels[n] = (byte)Math.min(255, OrigImg[n]);
-//		}
+		//		for (int n=0;n<bytePixels.length;n++)
+		//		{
+		//			bytePixels[n] = (byte)Math.min(255, OrigImg[n]);
+		//		}
 
 
 		//OverlayImage = createImage(new MemoryImageSource(width, height, overlayImage(orig), 0, width));
@@ -394,7 +383,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 
 	}
 
-	
+
 	@Override
 	public void computeColor(int[] rgbPixels, Rectangle imageSize, CamInfo info) 
 	{
@@ -420,7 +409,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 				results = new int[numofmatches*4];
 			}
 
-			
+
 
 			ScoreMatrix = new int[nWorkingRMax-nWorkingRMin][nWorkingTotalImgLen];
 			//MaxMatrix = new long[nWorkingRMax-nWorkingRMin];
@@ -429,7 +418,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 			{
 				bytePixels[n] = (byte) getGrayScale(rgbPixels[n]);
 			}
-			
+
 			for (int x=0;x<imageSize.width;x++)
 			{
 				for (int y=0;y<imageSize.height;y++)
@@ -475,105 +464,151 @@ public class DuncanMaskCollimationHelper implements IFilter
 			Image img = getImageFromArray(nMap,nWorkingImgWidth, nWorkingImgHeight);
 
 
-			String sResults = "<html>Results:<br>";
 
-			sResults +=String.format("<br>nDownScaleFactor=%d", nDownScaleFactor);
-			sResults +=String.format("<br>nWorkingImgWidth=%d, nWorkingImgHeight=%d", nWorkingImgWidth, nWorkingImgHeight);
+			int p0_x,p0_y, p1_x, p1_y, p2_x,p2_y;
+			p0_x = results[1]*nDownScaleFactor;
+			p1_x = results[5]*nDownScaleFactor;
+			p2_x = results[9]*nDownScaleFactor;
+			p0_y = results[2]*nDownScaleFactor;
+			p1_y = results[6]*nDownScaleFactor;
+			p2_y = results[10]*nDownScaleFactor;
 
-			int r_x,r_y, x, y;
-			r_x = results[1]*nDownScaleFactor;
-			x = results[5]*nDownScaleFactor;
-			r_y = results[2]*nDownScaleFactor;
-			y = results[6]*nDownScaleFactor;
+			int d1 = (int) Math.sqrt((p0_x-p1_x)*(p0_x-p1_x) + (p0_y-p1_y)*(p0_y-p1_y));
+			int d2 = (int) Math.sqrt((p1_x-p2_x)*(p1_x-p2_x) + (p1_y-p2_y)*(p1_y-p2_y));
+			int d3 = (int) Math.sqrt((p2_x-p0_x)*(p2_x-p0_x) + (p2_y-p0_y)*(p2_y-p0_y));
 			
-			int d1 = (int) Math.sqrt((r_x-x)*(r_x-x) + (r_y-y)*(r_y-y));
+			int p3a_x=0, p3a_y=0, p3b_x=0, p3b_y=0;
 
-			r_x = results[5]*nDownScaleFactor;
-			x = results[9]*nDownScaleFactor;
-			r_y = results[6]*nDownScaleFactor;
-			y = results[10]*nDownScaleFactor;
-						
-			int d2 = (int) Math.sqrt((r_x-x)*(r_x-x) + (r_y-y)*(r_y-y));
+			computeTipPoint(p0_x,p0_y,p1_x,p1_y, d1, p3a_x, p3a_y, p3b_x, p3b_y);
 
-			r_x = results[9]*nDownScaleFactor;
-			x = results[1]*nDownScaleFactor;
-			r_y = results[10]*nDownScaleFactor;
-			y = results[2]*nDownScaleFactor;
-			
-			int d3 = (int) Math.sqrt((r_x-x)*(r_x-x) + (r_y-y)*(r_y-y));
-			
+
+			String sResults = "<html>";
+			sResults +=String.format("<br>nDownScaleFactor=%d, nWorkingImgWidth=%d, nWorkingImgHeight=%d<br>", nDownScaleFactor, nWorkingImgWidth, nWorkingImgHeight);
+
 			for(int i=numofmatches-1; i>=0; i--)
 			{
 				drawCircle(0xffff0000, (int)results[i*4+1]*nDownScaleFactor, (int)results[i*4+2]*nDownScaleFactor,(int)results[i*4+3]*nDownScaleFactor,imageSize.width,imageSize.height, rgbPixels);
-				sResults += String.format("<br>%d,%d with radius %d.",results[i*4+1],results[i*4+2],results[i*4+3]);
+				sResults += String.format("Circle %d at (%d,%d) with radius %d. ",i,results[i*4+1],results[i*4+2],results[i*4+3]);
 			}
 
 			sResults += String.format("<br>d1=%d,d2=%d,d3=%d.",d1,d2,d3);
 			sResults +=String.format("<br>radius_min=%d, radius_max=%d", RadiusMinValue, RadiusMaxValue);
-			
-			drawDottedCircle(0, imageSize.width/2, imageSize.height/2,RadiusMinValue,imageSize.width,imageSize.height, rgbPixels);
-			drawDottedCircle(0, imageSize.width/2, imageSize.height/2,RadiusMaxValue,imageSize.width,imageSize.height, rgbPixels);
 			sResults +="</html>";
 
-			if (jImage==null)
-			{
-				jImage = new JFrame();
-				JLabel label = new JLabel();
-				JLabel lbTxt = new JLabel();
-				jImage.getContentPane().add(label);
-				jImage.getContentPane().add(lbTxt);
-			}
+			drawDottedCircle(0, imageSize.width/2, imageSize.height/2,RadiusMinValue,imageSize.width,imageSize.height, rgbPixels);
+			drawDottedCircle(0, imageSize.width/2, imageSize.height/2,RadiusMaxValue,imageSize.width,imageSize.height, rgbPixels);
 
-			
-			JLabel label = (JLabel) jImage.getContentPane().getComponent(0);
-			JLabel lbTxt = (JLabel) jImage.getContentPane().getComponent(1);
-			lbTxt.setText(sResults);
-			lbTxt.setSize(nWorkingImgWidth, (int)(nWorkingImgHeight));
-			lbTxt.setVisible(true);
 
-			
-			label.setIcon(new ImageIcon(img));
-			label.setSize(nWorkingImgWidth,nWorkingImgHeight);
-			jImage.setSize(nWorkingImgWidth, (int)(nWorkingImgHeight*2));
-			jImage.setVisible(true);
+			ShowImageWindowFrame(sResults, img);
 
-//			if (j==null)
-//			{
-//				j = new JFrame();
-//				label = new JLabel();
-//				j.getContentPane().add("exMessage", label);
-//			}
-//
-//			label = (JLabel)(j.getContentPane().getComponent(0));
-//			label.setText(sResults);
-//
-//			j.setSize(500, 420);
-//			j.setVisible(true);
+			//			if (j==null)
+			//			{
+			//				j = new JFrame();
+			//				label = new JLabel();
+			//				j.getContentPane().add("exMessage", label);
+			//			}
+			//
+			//			label = (JLabel)(j.getContentPane().getComponent(0));
+			//			label.setText(sResults);
+			//
+			//			j.setSize(500, 420);
+			//			j.setVisible(true);
 		}
 		catch (Exception e)
 		{
 
-			StringWriter sw = new StringWriter();
-			PrintWriter pw = new PrintWriter(sw);
-			e.printStackTrace(pw);
-			String sStackTrace = sw.toString();
-
-			JLabel label = null; 
-			if (j==null)
-			{
-				j = new JFrame();
-				label = new JLabel();
-				j.getContentPane().add("exMessage", label);
-			}
-
-			label=(JLabel) j.getContentPane().getComponent(0);
-			label.setText("<html>Exception:"+e.toString()+"StackTrace="+sStackTrace.replace("\r","<br>").replace("\n","<br>")+"</html>");
-			j.setSize(1020, 420);
-			label.setSize(new Dimension(1000,400));
-			j.setVisible(true);
+			//			StringWriter sw = new StringWriter();
+			//			PrintWriter pw = new PrintWriter(sw);
+			//			e.printStackTrace(pw);
+			//			String sStackTrace = sw.toString();
+			//
+			//			JLabel label = null; 
+			//			if (j==null)
+			//			{
+			//				j = new JFrame();
+			//				label = new JLabel();
+			//				j.getContentPane().add("exMessage", label);
+			//			}
+			//
+			//			label=(JLabel) j.getContentPane().getComponent(0);
+			//			label.setText("<html>Exception:"+e.toString()+"StackTrace="+sStackTrace.replace("\r","<br>").replace("\n","<br>")+"</html>");
+			//			j.setSize(1020, 420);
+			//			label.setSize(new Dimension(1000,400));
+			//			j.setVisible(true);
 		}
 	}
-	
+
+	private static void computeTipPoint(int p0_x, int p0_y, int p1_x, int p1_y, double length,  int pOut0_x, int pOut0_y, int pOut1_x, int pOut1_y)
+	{
+		double dx = p1_x - p0_x;
+		double dy = p1_y - p0_y;
+		double dirX = dx / length;
+		double dirY = dy / length;
+		double height = Math.sqrt(3)/2 * length;
+		double cx = p0_x + dx * 0.5;
+		double cy = p0_y + dy * 0.5;
+		double pDirX = -dirY;
+		double pDirY = dirX;
+		double rx = 0;
+		double ry = 0;
+		pOut0_x = (int) (cx + height * pDirX);
+		pOut0_y = (int) (cy + height * pDirY);
+		pOut1_x = (int) (cx - height * pDirX);
+		pOut1_y = (int) (cy - height * pDirY);
+	}
+
+	private static void computeTipPoint(Point2D p0, Point2D p1, double length,  Point2D pOut1, Point2D pOut2)
+	{
+		double dx = p1.getX() - p0.getX();
+		double dy = p1.getY() - p0.getY();
+		//double length = Math.sqrt(dx*dx+dy*dy);
+		double dirX = dx / length;
+		double dirY = dy / length;
+		double height = Math.sqrt(3)/2 * length;
+		double cx = p0.getX() + dx * 0.5;
+		double cy = p0.getY() + dy * 0.5;
+		double pDirX = -dirY;
+		double pDirY = dirX;
+		double rx = 0;
+		double ry = 0;
+		rx = cx + height * pDirX;
+		ry = cy + height * pDirY;
+		pOut1 = new Point2D.Double(rx, ry);
+		rx = cx - height * pDirX;
+		ry = cy - height * pDirY;
+		pOut2 = new Point2D.Double(rx, ry);
+	}
+
+	private void ShowImageWindowFrame(String sText, Image img)
+	{
+		if (jImage==null)
+		{
+			jImage = new JFrame();
+			JLabel lbImage = new JLabel();
+			JLabel lbTxt = new JLabel();
+			Container p = jImage.getContentPane();
+			p.setLayout(new BoxLayout(p,BoxLayout.Y_AXIS));
+			lbImage.setAlignmentX(Component.LEFT_ALIGNMENT);
+			p.add(lbImage,0);
+			lbTxt.setAlignmentX(Component.LEFT_ALIGNMENT);
+			p.add(lbTxt,1);
+		}
+
+
+		JLabel lbImage = (JLabel) jImage.getContentPane().getComponent(0);
+		JLabel lbTxt = (JLabel) jImage.getContentPane().getComponent(1);
+		lbTxt.setText(sText);
+		//lbTxt.setPreferredSize(new Dimension(500,200));
+		//lbTxt.setLocation(5,nWorkingImgHeight+5);
+		//lbTxt.setBorder(BorderFactory.createLineBorder(Color.BLUE, 5));
+		lbImage.setIcon(new ImageIcon(img));
+		lbImage.setSize(nWorkingImgWidth,nWorkingImgHeight);
+		//lbImage.setLocation(0,30);
+		//lbImage.setVisible(false);
+		jImage.setSize(nWorkingImgWidth, (int)(nWorkingImgHeight*1.4));
+		jImage.setVisible(true);
+
+	}
 
 	private void SobelProcess(byte[] input,int width ,int height ,double[] direction,byte[] output)
 	{
@@ -755,7 +790,8 @@ public class DuncanMaskCollimationHelper implements IFilter
 							int radius = r_min+rd;
 							x0 = (int)Math.round(x - (radius * costable[theta]));
 							y0 = (int)Math.round(y - (radius * sintable[theta]));
-							if(x0 < width && x0 > 0 && y0 < height && y0 > 0) 
+							//if(x0 < width && x0 > 0 && y0 < height && y0 > 0)
+							if (x0 + (y0 * width)>0 && x0 + (y0 * width)<acc[rd].length)
 							{
 								acc[rd][x0 + (y0 * width)] ++;
 								//								maxtable[rd]= (acc[rd][x0 + (y0 * width)]>maxtable[rd])?acc[rd][x0 + (y0 * width)]:maxtable[rd];
@@ -834,7 +870,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 		return image;
 	}
 
-	
+
 	private void drawCircle(byte nPixVal, int xCenter, int yCenter,int radius, int width, int height, byte[] output) 
 	{
 		//pix = 250;
@@ -844,7 +880,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 		// this is exact S
 		if ((((yCenter + radius) * width)+xCenter) < output.length) output[((yCenter + radius) * width)+xCenter] = nPixVal;
 		if ((((yCenter + radius-1) * width)+xCenter) < output.length) output[((yCenter + radius-1) * width)+xCenter] = nPixVal;
-		
+
 		// this is exact W
 		if (((yCenter - radius) * width)+xCenter>=0) output[((yCenter - radius) * width)+xCenter] = nPixVal;
 		if (((yCenter - radius+1) * width)+xCenter>=0) output[((yCenter - radius+1) * width)+xCenter] = nPixVal;
@@ -852,18 +888,18 @@ public class DuncanMaskCollimationHelper implements IFilter
 		// this is exact E
 		if ((yCenter * width)+(xCenter + radius)< output.length) output[(yCenter * width)+(xCenter + radius)] = nPixVal;
 		if ((yCenter * width)+(xCenter + radius-1)< output.length) output[(yCenter * width)+(xCenter + radius-1)] = nPixVal;
-		
+
 		// this is exact N
 		if ((yCenter * width)+(xCenter - radius)>=0) output[(yCenter * width)+(xCenter - radius)] = nPixVal;
 		if ((yCenter * width)+(xCenter - radius+1)>=0) output[(yCenter * width)+(xCenter - radius+1)] = nPixVal;
-		
+
 
 		//y = radius;
-		
+
 		x = 1;
 		y = (int) (Math.sqrt(r2 - 1) + 0.5);
 		// start drawing at 90 degree (top side)
-		
+
 		while (x < y) 
 		{
 			// this starts from S side to SE
@@ -877,27 +913,27 @@ public class DuncanMaskCollimationHelper implements IFilter
 			// this starts from S side to SW
 			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;
 			if (((yCenter + y-1) * width)+(xCenter - x)<output.length) output[((yCenter + y-1) * width)+(xCenter - x)] = nPixVal;
-			
+
 			// this starts from N side to NW
 			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;
 			if (((yCenter - y+1) * width)+(xCenter - x)>=0) output[((yCenter - y+1) * width)+(xCenter - x)] = nPixVal;
-			
+
 			// this starts from E side to SE
 			if (((yCenter + x) * width)+(xCenter + y)<output.length) output[((yCenter + x) * width)+(xCenter + y)] = nPixVal;
 			if (((yCenter + x) * width)+(xCenter + y-1)<output.length) output[((yCenter + x) * width)+(xCenter + y-1)] = nPixVal;
-			
+
 			// this starts from E side to NE			
 			if (((yCenter - x) * width)+(xCenter + y)>=0) output[((yCenter - x) * width)+(xCenter + y)] = nPixVal;
 			if (((yCenter - x) * width)+(xCenter + y-1)>=0) output[((yCenter - x) * width)+(xCenter + y-1)] = nPixVal;
-			
+
 			// this starts from W side to SW
 			if (((yCenter + x) * width)+(xCenter - y)<output.length) output[((yCenter + x) * width)+(xCenter - y)] = nPixVal;
 			if (((yCenter + x) * width)+(xCenter - y+1)<output.length) output[((yCenter + x) * width)+(xCenter - y+1)] = nPixVal;
-			
+
 			// this starts from W side to NW
 			if (((yCenter - x) * width)+(xCenter - y)>=0) output[((yCenter - x) * width)+(xCenter - y)] = nPixVal;
 			if (((yCenter - x) * width)+(xCenter - y+1)>=0) output[((yCenter - x) * width)+(xCenter - y+1)] = nPixVal;
-			
+
 			x++;
 			y = (int) (Math.sqrt(r2 - x*x) + 0.5);
 		}
@@ -907,21 +943,21 @@ public class DuncanMaskCollimationHelper implements IFilter
 			// this is exact SE
 			if (((yCenter + y) * width)+(xCenter + x)<output.length) output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;
 			if (((yCenter + y-1) * width)+(xCenter + x-1)<output.length) output[((yCenter + y-1) * width)+(xCenter + x-1)] = nPixVal;
-			
+
 			// this is exact NE
 			if (((yCenter - y) * width)+(xCenter + x)>=0) output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;
 			if (((yCenter - y-1) * width)+(xCenter + x-1)>=0) output[((yCenter - y-1) * width)+(xCenter + x-1)] = nPixVal;
-			
+
 			// this is exact SW 
 			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;
 			if (((yCenter + y-1) * width)+(xCenter - x+1)<output.length) output[((yCenter + y-1) * width)+(xCenter - x+1)] = nPixVal;
-			
+
 			// this is exact NW
 			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;
 			if (((yCenter - y-1) * width)+(xCenter - x+1)>=0) output[((yCenter - y-1) * width)+(xCenter - x+1)] = nPixVal;
 		}
 	}
-	
+
 
 	private void drawDottedCircle(int pix, int xCenter, int yCenter,int radius, int width, int height, int[] output) 
 	{
@@ -933,7 +969,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 		// this is exact S
 		if ((((yCenter + radius) * width)+xCenter) < output.length) output[((yCenter + radius) * width)+xCenter] = nPixVal;
 		if ((((yCenter + radius-1) * width)+xCenter) < output.length) output[((yCenter + radius-1) * width)+xCenter] = nPixVal;
-		
+
 		// this is exact W
 		if (((yCenter - radius) * width)+xCenter>=0) output[((yCenter - radius) * width)+xCenter] = nPixVal;
 		if (((yCenter - radius+1) * width)+xCenter>=0) output[((yCenter - radius+1) * width)+xCenter] = nPixVal;
@@ -941,18 +977,18 @@ public class DuncanMaskCollimationHelper implements IFilter
 		// this is exact E
 		if ((yCenter * width)+(xCenter + radius)< output.length) output[(yCenter * width)+(xCenter + radius)] = nPixVal;
 		if ((yCenter * width)+(xCenter + radius-1)< output.length) output[(yCenter * width)+(xCenter + radius-1)] = nPixVal;
-		
+
 		// this is exact N
 		if ((yCenter * width)+(xCenter - radius)>=0) output[(yCenter * width)+(xCenter - radius)] = nPixVal;
 		if ((yCenter * width)+(xCenter - radius+1)>=0) output[(yCenter * width)+(xCenter - radius+1)] = nPixVal;
-		
+
 
 		//y = radius;
-		
+
 		x = 1;
 		y = (int) (Math.sqrt(r2 - 1) + 0.5);
 		// start drawing at 90 degree (top side)
-		
+
 		while (x < y) 
 		{
 			// this starts from S side to SE
@@ -966,27 +1002,27 @@ public class DuncanMaskCollimationHelper implements IFilter
 			// this starts from S side to SW
 			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;
 			if (((yCenter + y-1) * width)+(xCenter - x)<output.length) output[((yCenter + y-1) * width)+(xCenter - x)] = nPixVal;
-			
+
 			// this starts from N side to NW
 			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;
 			if (((yCenter - y+1) * width)+(xCenter - x)>=0) output[((yCenter - y+1) * width)+(xCenter - x)] = nPixVal;
-			
+
 			// this starts from E side to SE
 			if (((yCenter + x) * width)+(xCenter + y)<output.length) output[((yCenter + x) * width)+(xCenter + y)] = nPixVal;
 			if (((yCenter + x) * width)+(xCenter + y-1)<output.length) output[((yCenter + x) * width)+(xCenter + y-1)] = nPixVal;
-			
+
 			// this starts from E side to NE			
 			if (((yCenter - x) * width)+(xCenter + y)>=0) output[((yCenter - x) * width)+(xCenter + y)] = nPixVal;
 			if (((yCenter - x) * width)+(xCenter + y-1)>=0) output[((yCenter - x) * width)+(xCenter + y-1)] = nPixVal;
-			
+
 			// this starts from W side to SW
 			if (((yCenter + x) * width)+(xCenter - y)<output.length) output[((yCenter + x) * width)+(xCenter - y)] = nPixVal;
 			if (((yCenter + x) * width)+(xCenter - y+1)<output.length) output[((yCenter + x) * width)+(xCenter - y+1)] = nPixVal;
-			
+
 			// this starts from W side to NW
 			if (((yCenter - x) * width)+(xCenter - y)>=0) output[((yCenter - x) * width)+(xCenter - y)] = nPixVal;
 			if (((yCenter - x) * width)+(xCenter - y+1)>=0) output[((yCenter - x) * width)+(xCenter - y+1)] = nPixVal;
-			
+
 			x+=6;
 			y = (int) (Math.sqrt(r2 - x*x) + 0.5);
 		}
@@ -996,21 +1032,21 @@ public class DuncanMaskCollimationHelper implements IFilter
 			// this is exact SE
 			if (((yCenter + y) * width)+(xCenter + x)<output.length) output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;
 			if (((yCenter + y-1) * width)+(xCenter + x-1)<output.length) output[((yCenter + y-1) * width)+(xCenter + x-1)] = nPixVal;
-			
+
 			// this is exact NE
 			if (((yCenter - y) * width)+(xCenter + x)>=0) output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;
 			if (((yCenter - y-1) * width)+(xCenter + x-1)>=0) output[((yCenter - y-1) * width)+(xCenter + x-1)] = nPixVal;
-			
+
 			// this is exact SW 
 			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;
 			if (((yCenter + y-1) * width)+(xCenter - x+1)<output.length) output[((yCenter + y-1) * width)+(xCenter - x+1)] = nPixVal;
-			
+
 			// this is exact NW
 			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;
 			if (((yCenter - y-1) * width)+(xCenter - x+1)>=0) output[((yCenter - y-1) * width)+(xCenter - x+1)] = nPixVal;
 		}
 	}
-	
+
 
 	private void drawDottedCircle(int pix, int xCenter, int yCenter,int radius, int width, int height, byte[] output) 
 	{
@@ -1022,7 +1058,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 		// this is exact S
 		if ((((yCenter + radius) * width)+xCenter) < output.length) output[((yCenter + radius) * width)+xCenter] = nPixVal;
 		if ((((yCenter + radius-1) * width)+xCenter) < output.length) output[((yCenter + radius-1) * width)+xCenter] = nPixVal;
-		
+
 		// this is exact W
 		if (((yCenter - radius) * width)+xCenter>=0) output[((yCenter - radius) * width)+xCenter] = nPixVal;
 		if (((yCenter - radius+1) * width)+xCenter>=0) output[((yCenter - radius+1) * width)+xCenter] = nPixVal;
@@ -1030,18 +1066,18 @@ public class DuncanMaskCollimationHelper implements IFilter
 		// this is exact E
 		if ((yCenter * width)+(xCenter + radius)< output.length) output[(yCenter * width)+(xCenter + radius)] = nPixVal;
 		if ((yCenter * width)+(xCenter + radius-1)< output.length) output[(yCenter * width)+(xCenter + radius-1)] = nPixVal;
-		
+
 		// this is exact N
 		if ((yCenter * width)+(xCenter - radius)>=0) output[(yCenter * width)+(xCenter - radius)] = nPixVal;
 		if ((yCenter * width)+(xCenter - radius+1)>=0) output[(yCenter * width)+(xCenter - radius+1)] = nPixVal;
-		
+
 
 		//y = radius;
-		
+
 		x = 1;
 		y = (int) (Math.sqrt(r2 - 1) + 0.5);
 		// start drawing at 90 degree (top side)
-		
+
 		while (x < y) 
 		{
 			// this starts from S side to SE
@@ -1055,27 +1091,27 @@ public class DuncanMaskCollimationHelper implements IFilter
 			// this starts from S side to SW
 			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;
 			if (((yCenter + y-1) * width)+(xCenter - x)<output.length) output[((yCenter + y-1) * width)+(xCenter - x)] = nPixVal;
-			
+
 			// this starts from N side to NW
 			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;
 			if (((yCenter - y+1) * width)+(xCenter - x)>=0) output[((yCenter - y+1) * width)+(xCenter - x)] = nPixVal;
-			
+
 			// this starts from E side to SE
 			if (((yCenter + x) * width)+(xCenter + y)<output.length) output[((yCenter + x) * width)+(xCenter + y)] = nPixVal;
 			if (((yCenter + x) * width)+(xCenter + y-1)<output.length) output[((yCenter + x) * width)+(xCenter + y-1)] = nPixVal;
-			
+
 			// this starts from E side to NE			
 			if (((yCenter - x) * width)+(xCenter + y)>=0) output[((yCenter - x) * width)+(xCenter + y)] = nPixVal;
 			if (((yCenter - x) * width)+(xCenter + y-1)>=0) output[((yCenter - x) * width)+(xCenter + y-1)] = nPixVal;
-			
+
 			// this starts from W side to SW
 			if (((yCenter + x) * width)+(xCenter - y)<output.length) output[((yCenter + x) * width)+(xCenter - y)] = nPixVal;
 			if (((yCenter + x) * width)+(xCenter - y+1)<output.length) output[((yCenter + x) * width)+(xCenter - y+1)] = nPixVal;
-			
+
 			// this starts from W side to NW
 			if (((yCenter - x) * width)+(xCenter - y)>=0) output[((yCenter - x) * width)+(xCenter - y)] = nPixVal;
 			if (((yCenter - x) * width)+(xCenter - y+1)>=0) output[((yCenter - x) * width)+(xCenter - y+1)] = nPixVal;
-			
+
 			x+=6;
 			y = (int) (Math.sqrt(r2 - x*x) + 0.5);
 		}
@@ -1085,32 +1121,32 @@ public class DuncanMaskCollimationHelper implements IFilter
 			// this is exact SE
 			if (((yCenter + y) * width)+(xCenter + x)<output.length) output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;
 			if (((yCenter + y-1) * width)+(xCenter + x-1)<output.length) output[((yCenter + y-1) * width)+(xCenter + x-1)] = nPixVal;
-			
+
 			// this is exact NE
 			if (((yCenter - y) * width)+(xCenter + x)>=0) output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;
 			if (((yCenter - y-1) * width)+(xCenter + x-1)>=0) output[((yCenter - y-1) * width)+(xCenter + x-1)] = nPixVal;
-			
+
 			// this is exact SW 
 			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;
 			if (((yCenter + y-1) * width)+(xCenter - x+1)<output.length) output[((yCenter + y-1) * width)+(xCenter - x+1)] = nPixVal;
-			
+
 			// this is exact NW
 			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;
 			if (((yCenter - y-1) * width)+(xCenter - x+1)>=0) output[((yCenter - y-1) * width)+(xCenter - x+1)] = nPixVal;
 		}
 	}
-	
+
 	private void drawCircle(int nPixVal, int xCenter, int yCenter,int radius, int width, int height, int[] output) 
 	{
 		//pix = 250;
-//		int nPixVal = 0xffff0000;
+		//		int nPixVal = 0xffff0000;
 		int x, y, r2;
 		r2 = radius * radius;
 
 		// this is exact S
 		if ((((yCenter + radius) * width)+xCenter) < output.length) output[((yCenter + radius) * width)+xCenter] = nPixVal;
 		if ((((yCenter + radius-1) * width)+xCenter) < output.length) output[((yCenter + radius-1) * width)+xCenter] = nPixVal;
-		
+
 		// this is exact W
 		if (((yCenter - radius) * width)+xCenter>=0) output[((yCenter - radius) * width)+xCenter] = nPixVal;
 		if (((yCenter - radius+1) * width)+xCenter>=0) output[((yCenter - radius+1) * width)+xCenter] = nPixVal;
@@ -1118,18 +1154,18 @@ public class DuncanMaskCollimationHelper implements IFilter
 		// this is exact E
 		if ((yCenter * width)+(xCenter + radius)< output.length) output[(yCenter * width)+(xCenter + radius)] = nPixVal;
 		if ((yCenter * width)+(xCenter + radius-1)< output.length) output[(yCenter * width)+(xCenter + radius-1)] = nPixVal;
-		
+
 		// this is exact N
 		if ((yCenter * width)+(xCenter - radius)>=0) output[(yCenter * width)+(xCenter - radius)] = nPixVal;
 		if ((yCenter * width)+(xCenter - radius+1)>=0) output[(yCenter * width)+(xCenter - radius+1)] = nPixVal;
-		
+
 
 		//y = radius;
-		
+
 		x = 1;
 		y = (int) (Math.sqrt(r2 - 1) + 0.5);
 		// start drawing at 90 degree (top side)
-		
+
 		while (x < y) 
 		{
 			// this starts from S side to SE
@@ -1143,27 +1179,27 @@ public class DuncanMaskCollimationHelper implements IFilter
 			// this starts from S side to SW
 			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;
 			if (((yCenter + y-1) * width)+(xCenter - x)<output.length) output[((yCenter + y-1) * width)+(xCenter - x)] = nPixVal;
-			
+
 			// this starts from N side to NW
 			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;
 			if (((yCenter - y+1) * width)+(xCenter - x)>=0) output[((yCenter - y+1) * width)+(xCenter - x)] = nPixVal;
-			
+
 			// this starts from E side to SE
 			if (((yCenter + x) * width)+(xCenter + y)<output.length) output[((yCenter + x) * width)+(xCenter + y)] = nPixVal;
 			if (((yCenter + x) * width)+(xCenter + y-1)<output.length) output[((yCenter + x) * width)+(xCenter + y-1)] = nPixVal;
-			
+
 			// this starts from E side to NE			
 			if (((yCenter - x) * width)+(xCenter + y)>=0) output[((yCenter - x) * width)+(xCenter + y)] = nPixVal;
 			if (((yCenter - x) * width)+(xCenter + y-1)>=0) output[((yCenter - x) * width)+(xCenter + y-1)] = nPixVal;
-			
+
 			// this starts from W side to SW
 			if (((yCenter + x) * width)+(xCenter - y)<output.length) output[((yCenter + x) * width)+(xCenter - y)] = nPixVal;
 			if (((yCenter + x) * width)+(xCenter - y+1)<output.length) output[((yCenter + x) * width)+(xCenter - y+1)] = nPixVal;
-			
+
 			// this starts from W side to NW
 			if (((yCenter - x) * width)+(xCenter - y)>=0) output[((yCenter - x) * width)+(xCenter - y)] = nPixVal;
 			if (((yCenter - x) * width)+(xCenter - y+1)>=0) output[((yCenter - x) * width)+(xCenter - y+1)] = nPixVal;
-			
+
 			x++;
 			y = (int) (Math.sqrt(r2 - x*x) + 0.5);
 		}
@@ -1173,15 +1209,15 @@ public class DuncanMaskCollimationHelper implements IFilter
 			// this is exact SE
 			if (((yCenter + y) * width)+(xCenter + x)<output.length) output[((yCenter + y) * width)+(xCenter + x)] = nPixVal;
 			if (((yCenter + y-1) * width)+(xCenter + x-1)<output.length) output[((yCenter + y-1) * width)+(xCenter + x-1)] = nPixVal;
-			
+
 			// this is exact NE
 			if (((yCenter - y) * width)+(xCenter + x)>=0) output[((yCenter - y) * width)+(xCenter + x)] = nPixVal;
 			if (((yCenter - y-1) * width)+(xCenter + x-1)>=0) output[((yCenter - y-1) * width)+(xCenter + x-1)] = nPixVal;
-			
+
 			// this is exact SW 
 			if (((yCenter + y) * width)+(xCenter - x)<output.length) output[((yCenter + y) * width)+(xCenter - x)] = nPixVal;
 			if (((yCenter + y-1) * width)+(xCenter - x+1)<output.length) output[((yCenter + y-1) * width)+(xCenter - x+1)] = nPixVal;
-			
+
 			// this is exact NW
 			if (((yCenter - y) * width)+(xCenter - x)>=0) output[((yCenter - y) * width)+(xCenter - x)] = nPixVal;
 			if (((yCenter - y-1) * width)+(xCenter - x+1)>=0) output[((yCenter - y-1) * width)+(xCenter - x+1)] = nPixVal;
@@ -1189,16 +1225,52 @@ public class DuncanMaskCollimationHelper implements IFilter
 	}
 
 
+	public void DrawLine(int x,int y,int x2, int y2, int width, int height, int color,  int[] output) 
+	{
+		int w = x2 - x ;
+		int h = y2 - y ;
+		int dx1 = 0, dy1 = 0, dx2 = 0, dy2 = 0 ;
+		if (w<0) dx1 = -1 ; else if (w>0) dx1 = 1 ;
+		if (h<0) dy1 = -1 ; else if (h>0) dy1 = 1 ;
+		if (w<0) dx2 = -1 ; else if (w>0) dx2 = 1 ;
+		int longest = Math.abs(w) ;
+		int shortest = Math.abs(h) ;
+		if (!(longest>shortest)) 
+		{
+			longest = Math.abs(h) ;
+			shortest = Math.abs(w) ;
+			if (h<0) dy2 = -1 ; else if (h>0) dy2 = 1 ;
+			dx2 = 0 ;            
+		}
+		int numerator = longest >> 1 ;
+		for (int i=0;i<=longest;i++) 
+		{
+			output[y*width+x] = color;
+			numerator += shortest ;
+			if (!(numerator<longest)) 
+			{
+				numerator -= longest ;
+				x += dx1 ;
+				y += dy1 ;
+			}
+			else 
+			{
+				x += dx2 ;
+				y += dy2 ;
+			}
+		}
+	}
+
 
 	private int getGrayScale(int rgb)
 	{
 		int r = rgb >> 16 & 0xff;
-		int g = rgb >> 8 & 0xff;
+			int g = rgb >> 8 & 0xff;
 		int b = rgb & 0xff;
 		int gray = (int)(0.21260000000000001D * (double)r + 0.71519999999999995D * (double)g + 0.0722D * (double)b);
 		return gray;
 	}
-	
+
 	@Override
 	public void captureStoped() {
 		// TODO Auto-generated method stub
@@ -1262,7 +1334,6 @@ public class DuncanMaskCollimationHelper implements IFilter
 	@Override
 	public void appendToLogfile(Properties properties) {
 		// TODO Auto-generated method stub
-
 	}
 
 }
