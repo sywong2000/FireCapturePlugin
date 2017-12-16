@@ -465,12 +465,15 @@ public class DuncanMaskCollimationHelper implements IFilter
 
 
 
-			int p0_x,p0_y, p1_x, p1_y, p2_x,p2_y;
+			int p0_x,p0_y, p1_x, p1_y, p2_x,p2_y, pT_x, pT_y;
+			
 			p0_x = results[1]*nDownScaleFactor;
-			p1_x = results[5]*nDownScaleFactor;
-			p2_x = results[9]*nDownScaleFactor;
 			p0_y = results[2]*nDownScaleFactor;
+			
+			p1_x = results[5]*nDownScaleFactor;
 			p1_y = results[6]*nDownScaleFactor;
+			
+			p2_x = results[9]*nDownScaleFactor;			
 			p2_y = results[10]*nDownScaleFactor;
 
 			int d1 = (int) Math.sqrt((p0_x-p1_x)*(p0_x-p1_x) + (p0_y-p1_y)*(p0_y-p1_y));
@@ -479,8 +482,28 @@ public class DuncanMaskCollimationHelper implements IFilter
 			
 			int p3a_x=0, p3a_y=0, p3b_x=0, p3b_y=0;
 
-			computeTipPoint(p0_x,p0_y,p1_x,p1_y, d1, p3a_x, p3a_y, p3b_x, p3b_y);
+			int[] p3points = computeTipPoint(p0_x,p0_y,p1_x,p1_y, d1);
+			p3a_x = p3points[0];
+			p3a_y = p3points[1];
+			p3b_x = p3points[2];
+			p3b_y = p3points[3];
+			
+			
+			int dp3a_p2 = (int) Math.sqrt((p2_x-p3a_x)*(p2_x-p3a_x) + (p2_y-p3a_y)*(p2_y-p3a_y));
+			int dp3b_p2 = (int) Math.sqrt((p2_x-p3b_x)*(p2_x-p3b_x) + (p2_y-p3b_y)*(p2_y-p3b_y));
+			
+			pT_x = (dp3a_p2<dp3b_p2)?p3a_x:p3b_x;
+			pT_y = (dp3a_p2<dp3b_p2)?p3a_y:p3b_y;
+			
+			drawLine(p0_x,p0_y,p1_x, p1_y, imageSize.width, imageSize.height, 0xffff0000,  rgbPixels);
+			drawLine(p1_x,p1_y,pT_x, pT_y, imageSize.width, imageSize.height, 0xffff0000,  rgbPixels);
+			drawLine(pT_x,pT_y,p0_x, p0_y, imageSize.width, imageSize.height, 0xffff0000,  rgbPixels);
 
+//			drawLine(p0_x,p0_y,p1_x, p1_y, imageSize.width, imageSize.height, 0xffff0000,  rgbPixels);
+//			drawLine(p1_x,p1_y,p2_x, p2_y, imageSize.width, imageSize.height, 0xffff0000,  rgbPixels);
+//			drawLine(p2_x,p2_y,p0_x, p0_y, imageSize.width, imageSize.height, 0xffff0000,  rgbPixels);
+
+			
 
 			String sResults = "<html>";
 			sResults +=String.format("<br>nDownScaleFactor=%d, nWorkingImgWidth=%d, nWorkingImgHeight=%d<br>", nDownScaleFactor, nWorkingImgWidth, nWorkingImgHeight);
@@ -493,6 +516,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 
 			sResults += String.format("<br>d1=%d,d2=%d,d3=%d.",d1,d2,d3);
 			sResults +=String.format("<br>radius_min=%d, radius_max=%d", RadiusMinValue, RadiusMaxValue);
+			sResults +=String.format("<br>p3a_x=%d, p3a_y=%d, p3b_x=%d, p3b_y=%d", p3a_x, p3a_y, p3b_x, p3a_y);
 			sResults +="</html>";
 
 			drawDottedCircle(0, imageSize.width/2, imageSize.height/2,RadiusMinValue,imageSize.width,imageSize.height, rgbPixels);
@@ -538,8 +562,9 @@ public class DuncanMaskCollimationHelper implements IFilter
 		}
 	}
 
-	private static void computeTipPoint(int p0_x, int p0_y, int p1_x, int p1_y, double length,  int pOut0_x, int pOut0_y, int pOut1_x, int pOut1_y)
+	private static int[] computeTipPoint(int p0_x, int p0_y, int p1_x, int p1_y, double length)
 	{
+		int pOut0_x, pOut0_y, pOut1_x, pOut1_y;
 		double dx = p1_x - p0_x;
 		double dy = p1_y - p0_y;
 		double dirX = dx / length;
@@ -549,35 +574,36 @@ public class DuncanMaskCollimationHelper implements IFilter
 		double cy = p0_y + dy * 0.5;
 		double pDirX = -dirY;
 		double pDirY = dirX;
-		double rx = 0;
-		double ry = 0;
+		
 		pOut0_x = (int) (cx + height * pDirX);
 		pOut0_y = (int) (cy + height * pDirY);
 		pOut1_x = (int) (cx - height * pDirX);
 		pOut1_y = (int) (cy - height * pDirY);
+		
+		return new int[] {pOut0_x, pOut0_y, pOut1_x, pOut1_y};
 	}
 
-	private static void computeTipPoint(Point2D p0, Point2D p1, double length,  Point2D pOut1, Point2D pOut2)
-	{
-		double dx = p1.getX() - p0.getX();
-		double dy = p1.getY() - p0.getY();
-		//double length = Math.sqrt(dx*dx+dy*dy);
-		double dirX = dx / length;
-		double dirY = dy / length;
-		double height = Math.sqrt(3)/2 * length;
-		double cx = p0.getX() + dx * 0.5;
-		double cy = p0.getY() + dy * 0.5;
-		double pDirX = -dirY;
-		double pDirY = dirX;
-		double rx = 0;
-		double ry = 0;
-		rx = cx + height * pDirX;
-		ry = cy + height * pDirY;
-		pOut1 = new Point2D.Double(rx, ry);
-		rx = cx - height * pDirX;
-		ry = cy - height * pDirY;
-		pOut2 = new Point2D.Double(rx, ry);
-	}
+//	private static void computeTipPoint(Point2D p0, Point2D p1, double length,  Point2D pOut1, Point2D pOut2)
+//	{
+//		double dx = p1.getX() - p0.getX();
+//		double dy = p1.getY() - p0.getY();
+//		//double length = Math.sqrt(dx*dx+dy*dy);
+//		double dirX = dx / length;
+//		double dirY = dy / length;
+//		double height = Math.sqrt(3)/2 * length;
+//		double cx = p0.getX() + dx * 0.5;
+//		double cy = p0.getY() + dy * 0.5;
+//		double pDirX = -dirY;
+//		double pDirY = dirX;
+//		double rx = 0;
+//		double ry = 0;
+//		rx = cx + height * pDirX;
+//		ry = cy + height * pDirY;
+//		pOut1 = new Point2D.Double(rx, ry);
+//		rx = cx - height * pDirX;
+//		ry = cy - height * pDirY;
+//		pOut2 = new Point2D.Double(rx, ry);
+//	}
 
 	private void ShowImageWindowFrame(String sText, Image img)
 	{
@@ -1225,7 +1251,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 	}
 
 
-	public void DrawLine(int x,int y,int x2, int y2, int width, int height, int color,  int[] output) 
+	public void drawLine(int x,int y,int x2, int y2, int width, int height, int color,  int[] output) 
 	{
 		int w = x2 - x ;
 		int h = y2 - y ;
