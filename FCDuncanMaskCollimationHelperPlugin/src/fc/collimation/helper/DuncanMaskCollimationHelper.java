@@ -41,6 +41,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 	static byte[] CurWorkImg2;
 	static int nDownScaleFactor = 1;
 	static int[][] ScoreMatrix;
+	static int[] colortable = null;
 	//static long[] MaxMatrix;
 	static int[] results; 
 
@@ -69,6 +70,12 @@ public class DuncanMaskCollimationHelper implements IFilter
 		{
 			costable[t] = Math.cos(t);
 			sintable[t] = Math.sin(t);
+		}
+		
+		colortable = new int[100];
+		for (int t=0;t<100;t++)
+		{
+			colortable[t] = numberToColorHsl((float) ((float)t/100.0),(float)0.5,(float)1.0);
 		}
 	}
 
@@ -479,8 +486,8 @@ public class DuncanMaskCollimationHelper implements IFilter
 			pT_x = (dp3a_p2<dp3b_p2)?p3a_x:p3b_x;
 			pT_y = (dp3a_p2<dp3b_p2)?p3a_y:p3b_y;
 			
-			double dDiff = (double)dp/(double)d1 * 100.0;
-			int nColor = (dDiff<10.0)?nGreenColor:nRedColor;
+			int dDiff = (int)(100-(double)dp/(double)d1 * 100.0);
+			int nColor = colortable[dDiff];// (dDiff<10.0)?nGreenColor:nRedColor;
 
 			//			drawLine(p0_x,p0_y,p1_x, p1_y, imageSize.width, imageSize.height, nGreenColor,  rgbPixels);
 			//			drawLine(p1_x,p1_y,pT_x, pT_y, imageSize.width, imageSize.height, nRedColor,  rgbPixels);
@@ -510,7 +517,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 				sResults += String.format("Circle %d at (%d,%d) with radius %d. ",i,results[i*4+1],results[i*4+2],results[i*4+3]);
 			}
 
-			sResults += String.format("<br>d1=%d,d2=%d,d3=%d. dp=%d. dDiff=%#.4f",d1,d2,d3, dp, dDiff);
+			sResults += String.format("<br>d1=%d,d2=%d,d3=%d. dp=%d. dDiff=%#.4f",d1,d2,d3, dp, (double)dDiff);
 			sResults +=String.format("<br>radius_min=%d, radius_max=%d", RadiusMinValue, RadiusMaxValue);
 			//sResults +=String.format("<br>p3a_x=%d, p3a_y=%d, p3b_x=%d, p3b_y=%d", p3a_x, p3a_y, p3b_x, p3a_y);
 			sResults +="</html>";
@@ -1528,6 +1535,85 @@ public class DuncanMaskCollimationHelper implements IFilter
 		return gray;
 	}
 
+	
+	
+/**
+ * Convert a number to a color using hsl, with range definition.
+ * Example: if min/max are 0/1, and i is 0.75, the color is closer to green.
+ * Example: if min/max are 0.5/1, and i is 0.75, the color is in the middle between red and green.
+ * @param i (floating point, range 0 to 1)
+ * param min (floating point, range 0 to 1, all i at and below this is red)
+ * param max (floating point, range 0 to 1, all i at and above this is green)
+ */
+	private static int numberToColorHsl(float i, float RangeMin, float RangeMax) 
+	{
+	    float ratio = i;
+	    if (RangeMin> 0 || RangeMax < 1) 
+	    {
+	        if (i < RangeMin) 
+	        {
+	            ratio = 0;
+	        } else if (i > RangeMax) 
+	        {
+	            ratio = 1;
+	        } else 
+	        {
+	            float range = RangeMax - RangeMin;
+	            ratio = (i-RangeMin) / range;
+	        }
+	    }
+
+	    // as the function expects a value between 0 and 1, and red = 0¢X and green = 120¢X
+	    // we convert the input to the appropriate hue value
+	    float hue = (float) (ratio * 1.2 / 3.60);
+	    //if (minMaxFactor!=1) hue /= minMaxFactor;
+	    //console.log(hue);
+
+	    // we convert hsl to rgb (saturation 100%, lightness 50%)
+	    return HslToRgb(hue, 1, (float) 0.5);
+	    // we format to css value and return
+	    //return 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')'; 
+	}
+	
+    public static int HslToRgb(float h, float s, float l) 
+    { 
+        int r, g, b; 
+        if (h == 0) 
+        { 
+            // gray values 
+            r = g = b = (byte) (l * 255); 
+        }
+        else 
+        { 
+            double v1, v2; 
+            double hue = (double) h / 360; 
+ 
+            v2 = (l < 0.5) ?(l * (1 + s)) : ((l + s) - (l * s)); 
+            v1 = 2 * l - v2; 
+ 
+            r = (byte) (255 * Hue_2_RGB(v1, v2, hue + (1.0 / 3))); 
+            g = (byte) (255 * Hue_2_RGB(v1, v2, hue)); 
+            b = (byte) (255 * Hue_2_RGB(v1, v2, hue - (1.0 / 3))); 
+        } 
+        return (255 << 24) | (r << 16) | (g << 8) | b; 
+    } 
+    
+    private static double Hue_2_RGB(double v1, double v2, double vH) 
+    { 
+        if (vH < 0) 
+            vH += 1; 
+        if (vH > 1) 
+            vH -= 1; 
+        if ((6 * vH) < 1) 
+            return (v1 + (v2 - v1) * 6 * vH); 
+        if ((2 * vH) < 1) 
+            return v2; 
+        if ((3 * vH) < 2) 
+            return (v1 + (v2 - v1) * ((2.0 / 3) - vH) * 6); 
+        return v1; 
+    } 
+	
+	
 	@Override
 	public void captureStoped() {
 		// TODO Auto-generated method stub
