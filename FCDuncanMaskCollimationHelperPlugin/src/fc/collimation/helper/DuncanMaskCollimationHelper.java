@@ -1545,7 +1545,8 @@ public class DuncanMaskCollimationHelper implements IFilter
  * param min (floating point, range 0 to 1, all i at and below this is red)
  * param max (floating point, range 0 to 1, all i at and above this is green)
  */
-	private static int numberToColorHsl(float i, float RangeMin, float RangeMax) 
+
+	private static int numberToColorHsl (float i, float RangeMin, float RangeMax) 
 	{
 	    float ratio = i;
 	    if (RangeMin> 0 || RangeMax < 1) 
@@ -1563,14 +1564,20 @@ public class DuncanMaskCollimationHelper implements IFilter
 	        }
 	    }
 
+	    int nG = (int) (ratio * 255);
+	    int nR = (int) ((1-ratio) * 255);
+	    int nB = 0;
+	    
+	    return (255 << 24) | (nR << 16) | (nG << 8) | nB;
+	    
 	    // as the function expects a value between 0 and 1, and red = 0¢X and green = 120¢X
 	    // we convert the input to the appropriate hue value
-	    float hue = (float) (ratio * 1.2 / 3.60);
+	    //float hue = (float) (ratio * 1.2 / 3.60);
 	    //if (minMaxFactor!=1) hue /= minMaxFactor;
 	    //console.log(hue);
 
 	    // we convert hsl to rgb (saturation 100%, lightness 50%)
-	    return HslToRgb(hue, 1, (float) 0.5);
+	    //return HslToRgb(hue, 1, (float) 0.5);
 	    // we format to css value and return
 	    //return 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')'; 
 	}
