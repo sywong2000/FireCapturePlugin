@@ -75,7 +75,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 		colortable = new int[100];
 		for (int t=0;t<100;t++)
 		{
-			colortable[t] = numberToColorHsl((float) ((float)t/100.0),(float)0.5,(float)1.0);
+			colortable[t] = numberToColorHsl((float) ((float)t/100.0),(float)0.7,(float)1.0);
 		}
 	}
 
@@ -240,12 +240,19 @@ public class DuncanMaskCollimationHelper implements IFilter
 			//			sobelObject.init(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight,Direction,CurWorkImg2);
 			SobelProcess(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight,Direction,CurWorkImg2);
 
+			byte[] nMap = new byte[CurWorkImg1.length];
+			for (int n=0;n<CurWorkImg2.length;n++)
+			{
+				nMap[n] = CurWorkImg2[n];
+			}
+
 			//			nonMaxSuppression nonMaxSuppressionObject = new nonMaxSuppression(); 
 			//			nonMaxSuppressionObject.init(CurWorkImg2,Direction,nWorkingImgWidth,nWorkingImgHeight, CurWorkImg1);
 			//			nonMaxSuppressionObject.process2();
 			NonMaxSuppressionProcess(CurWorkImg2,Direction,nWorkingImgWidth,nWorkingImgHeight, CurWorkImg1);
+			
 
-			byte[] nMap = new byte[CurWorkImg1.length];
+			
 			nHystStackSize = 0;
 			nHystMaxLen = (int) (2*Math.PI * Math.min(nWorkingImgWidth,nWorkingImgHeight)/2);
 
@@ -254,10 +261,6 @@ public class DuncanMaskCollimationHelper implements IFilter
 			//			hystThreshObject.process();
 			hystThreshProcess(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight, (byte)10,(byte)20,CurWorkImg2);
 
-			for (int n=0;n<CurWorkImg2.length;n++)
-			{
-				nMap[n] = CurWorkImg2[n];
-			}
 
 
 			//			for (int n=0;n<results.length;n++) results[n] = 0;
@@ -442,19 +445,20 @@ public class DuncanMaskCollimationHelper implements IFilter
 			SobelProcess(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight,Direction,CurWorkImg2);
 			NonMaxSuppressionProcess(CurWorkImg2,Direction,nWorkingImgWidth,nWorkingImgHeight, CurWorkImg1);
 
-			byte[] nMap = new byte[CurWorkImg1.length];
 			nHystStackSize = 0;
 			nHystMaxLen = (int) (2*Math.PI * Math.min(nWorkingImgWidth,nWorkingImgHeight)/2);
-
 			hystThreshProcess(CurWorkImg1,nWorkingImgWidth,nWorkingImgHeight, (byte)10,(byte)20,CurWorkImg2);
 
+			byte[] nMap = new byte[CurWorkImg1.length];
+			
 			for (int n=0;n<CurWorkImg2.length;n++)
 			{
 				nMap[n] = CurWorkImg2[n];
 			}
-			HoughProcess(CurWorkImg2,nWorkingImgWidth,nWorkingImgHeight, nWorkingRMin, nWorkingRMax, numofmatches,ScoreMatrix);
 			Image img = getImageFromArray(nMap,nWorkingImgWidth, nWorkingImgHeight);
-
+		
+			HoughProcess(CurWorkImg2,nWorkingImgWidth,nWorkingImgHeight, nWorkingRMin, nWorkingRMax, numofmatches,ScoreMatrix);
+			
 			int p0_x,p0_y, p1_x, p1_y, p2_x,p2_y, pT_x, pT_y;
 
 			p0_x = results[1];//*nDownScaleFactor;
@@ -524,8 +528,8 @@ public class DuncanMaskCollimationHelper implements IFilter
 
 			drawDottedCircle(nYellowColor, imageSize.width/2, imageSize.height/2,RadiusMinValue,imageSize.width,imageSize.height, rgbPixels);
 			drawDottedCircle(nYellowColor, imageSize.width/2, imageSize.height/2,RadiusMaxValue,imageSize.width,imageSize.height, rgbPixels);
-
 			ShowImageWindowFrame(sResults, img);
+			
 
 			//			if (j==null)
 			//			{
@@ -666,8 +670,11 @@ public class DuncanMaskCollimationHelper implements IFilter
 				//int gx=(((-1*val00)+(0*val01)+(1*val02))+((-2*val10)+(0*val11)+(2*val12))+((-1*val20)+(0*val21)+(1*val22)));
 				//int gy=(((-1*val00)+(-2*val01)+(-1*val02))+((0*val10)+(0*val11)+(0*val12))+((1*val20)+(2*val21)+(1*val22)));
 
-				int gx=(((1*val00)+(2*val01)+(1*val02))+((0*val10)+(0*val11)+(0*val12))+((-1*val20)+(-2*val21)+(-1*val22)));
-				int gy=(((1*val00)+(0*val01)+(-1*val02))+((2*val10)+(0*val11)+(-2*val12))+((1*val20)+(0*val21)+(-1*val22)));
+				//int gx=(((1*val00)+(2*val01)+(1*val02))+((0*val10)+(0*val11)+(0*val12))+((-1*val20)+(-2*val21)+(-1*val22)));
+				//int gy=(((1*val00)+(0*val01)+(-1*val02))+((2*val10)+(0*val11)+(-2*val12))+((1*val20)+(0*val21)+(-1*val22)));
+				
+				int gx=(((1*val00)+(2*val01)+(1*val02))+((-1*val20)+(-2*val21)+(-1*val22)));
+				int gy=(((1*val00)+(-1*val02))+((2*val10)+(-2*val12))+((1*val20)+(-1*val22)));
 
 
 				byte gval= (byte)Math.min(255,(Math.sqrt((gx*gx)+(gy*gy))));
@@ -698,7 +705,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 					int x2 = (int)Math.ceil((Riven.cos((float) (angle - pi_over_8)) * roottwo) - 0.5);
 					int y2 = (int)Math.ceil((-Riven.sin((float) (angle - pi_over_8)) * roottwo) - 0.5);
 
-					double M1 = (magnitude[(y+y1)*width+(x+x1)]&0xff + magnitude[(y+y2)*width+(x+x2)]&0xff)/2;
+					double M1 = ((double)((int)(magnitude[(y+y1)*width+(x+x1)]&0xff) + (int)(magnitude[(y+y2)*width+(x+x2)]&0xff)))/2.0;
 
 					angle += Math.PI;
 
@@ -707,7 +714,7 @@ public class DuncanMaskCollimationHelper implements IFilter
 					x2 = (int)Math.ceil((Riven.cos((float) (angle - pi_over_8)) * roottwo) - 0.5);
 					y2 = (int)Math.ceil((-Riven.sin((float) (angle - pi_over_8)) * roottwo) - 0.5);
 
-					double M2 = (magnitude[(y+y1)*width+(x+x1)]&0xff + magnitude[(y+y2)*width+(x+x2)]&0xff)/2;
+					double M2 = ((double)((int)(magnitude[(y+y1)*width+(x+x1)]&0xff) + (int)(magnitude[(y+y2)*width+(x+x2)]&0xff)))/2.0;
 
 					if ((Mint > (byte) M1) && (Mint >= (byte) M2)) 
 					{
@@ -763,8 +770,8 @@ public class DuncanMaskCollimationHelper implements IFilter
 	private void hystConnect(byte[] input, int x, int y, int width, int height, byte lower) 
 	{
 
-		if (nHystStackSize > nHystMaxLen) return;
-		nHystStackSize++;
+//		if (nHystStackSize > nHystMaxLen) return;
+//		nHystStackSize++;
 
 		byte value = 0;
 		for (int x1=x-1;x1<=x+1;x1++) 
