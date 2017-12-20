@@ -275,9 +275,9 @@ public class DuncanMaskCollimationHelper implements IFilter
 				p0_x  = p1_x ; p0_y  = p1_y;
 			}
 
-			int d1 = (int) Math.sqrt((r_x-x)*(r_x-x) + (r_y-y)*(r_y-y));
-			int d2 = (int) Math.sqrt((r_x-x)*(r_x-x) + (r_y-y)*(r_y-y));
-			int d3 = (int) Math.sqrt((r_x-x)*(r_x-x) + (r_y-y)*(r_y-y));
+			int d1 = (int) Math.sqrt((p0_x-p1_x)*(p0_x-p1_x) + (p0_y-p1_y)*(p0_y-p1_y));
+			int d2 = (int) Math.sqrt((p1_x-p2_x)*(p1_x-p2_x) + (p1_y-p2_y)*(p1_y-p2_y));
+			int d3 = (int) Math.sqrt((p2_x-p0_x)*(p2_x-p0_x) + (p2_y-p0_y)*(p2_y-p0_y));
 
 			int p3a_x=0, p3a_y=0, p3b_x=0, p3b_y=0;
 
@@ -466,18 +466,21 @@ public class DuncanMaskCollimationHelper implements IFilter
 			{
 				tmp_x = p0_x ; tmp_y = p0_y;
 				p0_x  = p1_x ; p0_y  = p1_y;
+				p1_x = tmp_x; p1_y = tmp_y;
 			}
 			
-			if (p1_x + p1_y > p2_x+p2_y)
+			if (p1_x+p1_y  > p2_x+p2_y)
 			{
 				tmp_x = p1_x ; tmp_y = p1_y;
 				p1_x  = p2_x ; p1_y  = p2_y;
+				p2_x = tmp_x; p2_y = tmp_y;
 			}
 			
-			if (p0_x + p0_y > p1_x+p1_y)
+			if (p0_x+p0_y  > p1_x+p1_y)
 			{
 				tmp_x = p0_x ; tmp_y = p0_y;
 				p0_x  = p1_x ; p0_y  = p1_y;
+				p1_x = tmp_x; p1_y = tmp_y;
 			}
 			
 
