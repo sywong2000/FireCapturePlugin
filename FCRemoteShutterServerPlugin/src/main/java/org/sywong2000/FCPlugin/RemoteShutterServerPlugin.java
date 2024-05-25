@@ -16,34 +16,24 @@ import java.util.Properties;
 
 public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter {
 
-    public interface CustomCaptureFilterListener extends IFilterListener
-    {
-        public void setIsCapturing(boolean b);
-        public boolean getIsCapturing();
-    }
-
-    private abstract class CustomsCaptureFilter implements CustomCaptureFilterListener
-    {
-
-        private boolean isCapturing = false;
-        @Override
-        public void setIsCapturing(boolean b) {
-            isCapturing = b;
-        }
-
-        @Override
-        public boolean getIsCapturing() {
-            return isCapturing;
-        }
-
-    }
-
-
     private boolean capture = true;
-    private CustomsCaptureFilter captureListener;
+    private IFilterListener captureListener;
+    private boolean isCapturing;
     private JButton button;
     private JFrame frame;
+
     private JLabel statusLabel;
+
+    public boolean isCapturing() {
+        return isCapturing;
+    }
+
+    public void setIsCapturing(boolean bIsCapturing) {
+        isCapturing = bIsCapturing;
+    }
+
+
+
 
     @Override
     public String getName() {
@@ -148,13 +138,13 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
     @Override
     public void captureStoped() {
         // TODO Auto-generated method stub
-        captureListener.setIsCapturing(false);
+        setIsCapturing(false);
     }
 
     @Override
     public void captureStarted() {
         // TODO Auto-generated method stub
-        captureListener.setIsCapturing(true);
+        setIsCapturing(true);
     }
 
     @Override
@@ -172,7 +162,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
     @Override
     public boolean supportsColor() {
         // TODO Auto-generated method stub
-        return false;
+        return true;
     }
 
     @Override
@@ -182,7 +172,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
 
     @Override
     public void registerFilterListener(IFilterListener listener) {
-        captureListener = (CustomsCaptureFilter) listener;
+        captureListener = listener;
     }
 
     @Override
@@ -216,7 +206,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
 
     private void startSocket() {
         try {
-            SocketConnection socketConnection = new SocketConnection(8088);
+            SocketConnection socketConnection = new SocketConnection(8088, this);
             socketConnection.start();
         } catch (IOException e) {
             // TODO Auto-generated catch block
@@ -227,9 +217,16 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
     class SocketConnection extends Thread {
 
         private final ServerSocket server;
+        private RemoteShutterServerPlugin instance;
 
-        public SocketConnection(int port) throws IOException {
+        public SocketConnection(int port, RemoteShutterServerPlugin plugin) throws IOException {
             this.server = new ServerSocket(port);
+            this.instance = plugin;
+        }
+
+        public void setRunningInstance(RemoteShutterServerPlugin plugin)
+        {
+            instance = plugin;
         }
 
         public void run() {
@@ -249,6 +246,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
 //                bw.flush();
                 while (run) {
                     switch (readInput(bwin.readLine())) {
+
                         case 1:
                             statusLabel.setText("Starting capture command received...");
                             captureListener.startCapture();
@@ -283,14 +281,16 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
                             run = false;
                             break;
                         case 6:
-                            if (captureListener.getIsCapturing())
+                            if (instance.isCapturing())
                             {
+                                statusLabel.setText("Return Capture status = 1");
                                 bw.write("1");
                                 bw.newLine();
                                 bw.flush();
                             }
                             else
                             {
+                                statusLabel.setText("Return Capture status = 0");
                                 bw.write("0");
                                 bw.newLine();
                                 bw.flush();
@@ -325,6 +325,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
                 return -1;
             } else {
                 try {
+                    statusLabel.setText("Received Command:"+line);
                     return Integer.parseInt(line);
                 } catch (Exception e) {
                     return -1;
@@ -336,7 +337,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
 
     @Override
     public String getInterfaceVersion() {
-        return "1.0";
+        return "1.1";
     }
 
     @Override

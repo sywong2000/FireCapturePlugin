@@ -1,5 +1,7 @@
+
 plugins {
     id 'java'
+    id 'idea'
 }
 
 //group = 'org.example'
@@ -7,6 +9,14 @@ plugins {
 
 repositories {
     mavenCentral()
+}
+
+
+
+idea {
+    project {
+        languageLevel = '11'
+    }
 }
 
 dependencies {
