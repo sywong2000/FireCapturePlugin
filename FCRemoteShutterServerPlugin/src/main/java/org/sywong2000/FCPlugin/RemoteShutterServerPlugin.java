@@ -21,8 +21,10 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
     private boolean isCapturing;
     private JButton button;
     private JFrame frame;
+    private SocketConnection socketConnection = null;
 
     private JLabel statusLabel;
+    private JButton buttonRestartSocket;
 
     public boolean isCapturing() {
         return isCapturing;
@@ -116,7 +118,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
     @Override
     public void release() {
         // TODO Auto-generated method stub
-
+        //stopSocket();
     }
 
     @Override
@@ -191,42 +193,70 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
 
     protected void openConnectWindow() {
         if (frame == null) {
+
             frame = new JFrame();
+            frame.setLayout(new FlowLayout());
+
             statusLabel = new JLabel("Waiting for command...");
             statusLabel.setFont(statusLabel.getFont().deriveFont(Font.BOLD, 14f));
             statusLabel.setForeground(Color.red);
             statusLabel.setBorder(BorderFactory.createTitledBorder("Status"));
+
+
+            buttonRestartSocket = new JButton("Restart Winsock");
+            buttonRestartSocket.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    stopSocket();
+                    startSocket();
+                    statusLabel.setText("Winsock restarted");
+                }
+            });
+
             frame.getContentPane().add(statusLabel);
-            frame.setSize(new Dimension(400, 120));
+            frame.getContentPane().add(buttonRestartSocket);
+            frame.setSize(new Dimension(400, 300));
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         }
         startSocket();
         frame.setVisible(true);
 
     }
 
+    protected void closeConnectWindow() {
+        if (frame != null) {
+            frame.setVisible(false);
+            frame = null;
+        }
+    }
+
     private void startSocket() {
         try {
-            SocketConnection socketConnection = new SocketConnection(8088, this);
-            socketConnection.start();
+            if (socketConnection == null) {
+                socketConnection = new SocketConnection(8088);
+                socketConnection.start();
+            }
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
     }
 
+    private void stopSocket()
+    {
+        if (socketConnection != null)
+        {
+            socketConnection.interrupt();
+            socketConnection = null;
+        }
+    }
+
     class SocketConnection extends Thread {
 
         private final ServerSocket server;
-        private RemoteShutterServerPlugin instance;
 
-        public SocketConnection(int port, RemoteShutterServerPlugin plugin) throws IOException {
+        public SocketConnection(int port) throws IOException {
             this.server = new ServerSocket(port);
-            this.instance = plugin;
-        }
-
-        public void setRunningInstance(RemoteShutterServerPlugin plugin)
-        {
-            instance = plugin;
         }
 
         public void run() {
@@ -249,39 +279,60 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
 
                         case 1:
                             statusLabel.setText("Starting capture command received...");
-                            captureListener.startCapture();
                             bw.write("Starting capture...");
                             bw.newLine();
                             bw.flush();
-                            break;
-                        case 2:
-                            statusLabel.setText("Toggle capture command received...");
-                            capture = !capture;
-                            bw.write(capture ? "Capture resumed..." : "Capture paused...");
+                            try {
+                                captureListener.startCapture();
+                            }
+                            catch (Exception ex)
+                            {
+                                // assume that the capture is already started
+                                // temporary workaround
+                                // submitted a message in group.io to Torsten
+                                setIsCapturing(true);
+                            }
+//                            this.instance.setIsCapturing(true);
+                            bw.write("Capture Started ");
                             bw.newLine();
                             bw.flush();
                             break;
+//                        case 2:
+//                            statusLabel.setText("Toggle capture command received...");
+//                            capture = !capture;
+//                            bw.write(capture ? "Capture resumed..." : "Capture paused...");
+//                            bw.newLine();
+//                            bw.flush();
+//                            break;
                         case 3:
                             statusLabel.setText("Stop capture command received...");
-                            captureListener.stopCapture();
+                            try {
+                                captureListener.stopCapture();
+                            }
+                            catch (Exception ex)
+                            {
+
+                            }
+//                            this.instance.setIsCapturing(false);
+
                             bw.write("Stop capture...");
                             bw.newLine();
                             bw.flush();
                             break;
-                        case 4:
-                            statusLabel.setText("Emergency snapshot triggered received...");
-                            captureListener.startSnapshot();
-                            bw.write("Emergency snapshot triggered...");
-                            bw.newLine();
-                            bw.flush();
-                            break;
+//                        case 4:
+//                            statusLabel.setText("Emergency snapshot triggered received...");
+//                            captureListener.startSnapshot();
+//                            bw.write("Emergency snapshot triggered...");
+//                            bw.newLine();
+//                            bw.flush();
+//                            break;
                         case 5:
                             frame.setVisible(false);
                             captureListener.stopCapture();
                             run = false;
                             break;
                         case 6:
-                            if (instance.isCapturing())
+                            if (isCapturing())
                             {
                                 statusLabel.setText("Return Capture status = 1");
                                 bw.write("1");

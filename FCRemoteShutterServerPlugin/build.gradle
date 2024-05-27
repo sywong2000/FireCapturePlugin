@@ -15,7 +15,7 @@ repositories {
 
 idea {
     project {
-        languageLevel = '11'
+        languageLevel = '1.8'
     }
 }
 
