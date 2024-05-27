@@ -24,10 +24,30 @@ dependencies {
 //    testImplementation 'org.junit.jupiter:junit-jupiter'
 }
 
-//test {
-//    useJUnitPlatform()
-//}
+jar {
+    manifest {
+        attributes(
+                'Main-Class': 'org.sywong2000.FCPlugin.RemoteShutterServerPlugin'
+        )
+    }
+    archiveBaseName.set('FCRemoteShutterServerPlugin')
+    archiveExtension.set('jar')
+    destinationDirectory.set(file('out'))
+//    destinationDirectory.set(file(System.getProperty("user.home") + "\\Desktop\\FireCapture_v2.7\\"))
+//    destinationDirectory.set(file(System.getProperty("user.home") + "\\Desktop\\FireCapture_v2.7\\plugins\\x64\\RemoteShutterServer"))
+//    destinationDirectory.set(file(System.getProperty("user.home") + "\\Desktop"))
+//    destinationDirectory.set(file(System.getProperty("user.home")))
+}
 
+task copyJar(type: Copy) {
+//    dependsOn jar
+    //println jar.archiveFileName
+    from ""
+    into System.getProperty("user.home") + "\\Desktop\\FireCapture_v2.7\\plugins\\x64\\RemoteShutterServer\\"
+}
+
+build.finalizedBy(copyJar)
+jar.finalizedBy(copyJar)
 
 dependencies {
     implementation files('libs/Plugin-1.1.jar')
