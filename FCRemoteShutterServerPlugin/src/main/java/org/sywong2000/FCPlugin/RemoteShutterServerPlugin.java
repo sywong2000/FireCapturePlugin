@@ -118,6 +118,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
     @Override
     public void release() {
         // TODO Auto-generated method stub
+        closeConnectWindow();
         //stopSocket();
     }
 
@@ -202,7 +203,6 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
             statusLabel.setForeground(Color.red);
             statusLabel.setBorder(BorderFactory.createTitledBorder("Status"));
 
-
             buttonRestartSocket = new JButton("Restart Winsock");
             buttonRestartSocket.addActionListener(new ActionListener() {
                 @Override
@@ -213,14 +213,18 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
                 }
             });
 
-            frame.getContentPane().add(statusLabel);
-            frame.getContentPane().add(buttonRestartSocket);
-            frame.setSize(new Dimension(400, 300));
+            JPanel panelTop = new JPanel();
+            panelTop.setSize(new Dimension(390, 300));
+            panelTop.add(statusLabel);
+            JPanel panelBottom = new JPanel();
+            panelBottom.add(buttonRestartSocket);
+            frame.getContentPane().add(panelTop);
+            frame.getContentPane().add(panelBottom);
+            frame.setSize(new Dimension(400, 400));
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         }
         startSocket();
         frame.setVisible(true);
-
     }
 
     protected void closeConnectWindow() {
@@ -279,21 +283,8 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
 
                         case 1:
                             statusLabel.setText("Starting capture command received...");
-                            bw.write("Starting capture...");
-                            bw.newLine();
-                            bw.flush();
-                            try {
-                                captureListener.startCapture();
-                            }
-                            catch (Exception ex)
-                            {
-                                // assume that the capture is already started
-                                // temporary workaround
-                                // submitted a message in group.io to Torsten
-                                setIsCapturing(true);
-                            }
-//                            this.instance.setIsCapturing(true);
-                            bw.write("Capture Started ");
+                            SwingUtilities.invokeAndWait(() -> captureListener.startCapture());
+                            bw.write("1");
                             bw.newLine();
                             bw.flush();
                             break;
@@ -306,16 +297,8 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
 //                            break;
                         case 3:
                             statusLabel.setText("Stop capture command received...");
-                            try {
-                                captureListener.stopCapture();
-                            }
-                            catch (Exception ex)
-                            {
-
-                            }
-//                            this.instance.setIsCapturing(false);
-
-                            bw.write("Stop capture...");
+                            SwingUtilities.invokeAndWait(() -> captureListener.stopCapture());
+                            bw.write("1");
                             bw.newLine();
                             bw.flush();
                             break;
@@ -328,7 +311,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
 //                            break;
                         case 5:
                             frame.setVisible(false);
-                            captureListener.stopCapture();
+                            SwingUtilities.invokeAndWait(() -> captureListener.stopCapture());
                             run = false;
                             break;
                         case 6:
