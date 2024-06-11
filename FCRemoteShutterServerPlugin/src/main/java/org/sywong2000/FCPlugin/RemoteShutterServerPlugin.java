@@ -13,6 +13,7 @@ import java.awt.event.ActionListener;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Date;
 import java.util.Properties;
 
 public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter {
@@ -24,7 +25,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
     private JFrame frame;
     private SocketConnection socketConnectionThread = null;
 
-    private JLabel statusLabel;
+    private JTextArea logTextArea;
     private JButton buttonRestartSocket;
 
     public boolean isCapturing() {
@@ -35,6 +36,13 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
         isCapturing = bIsCapturing;
     }
 
+    public void addLogText(String sText){
+        if (logTextArea != null)
+        {
+            logTextArea.append(new Date() +"  -  " + sText + "\n");
+            logTextArea.setCaretPosition(logTextArea.getDocument().getLength());
+        }
+    }
 
 
 
@@ -197,10 +205,10 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
             frame = new JFrame();
             frame.setLayout(new FlowLayout());
 
-            statusLabel = new JLabel("Waiting for command...");
-            statusLabel.setFont(statusLabel.getFont().deriveFont(Font.BOLD, 14f));
-            statusLabel.setForeground(Color.red);
-            statusLabel.setBorder(BorderFactory.createTitledBorder("Status"));
+            logTextArea = new JTextArea (20,80);
+            logTextArea.setEditable(false);
+            logTextArea.setLineWrap(true);
+            logTextArea.setWrapStyleWord(true);
 
             buttonRestartSocket = new JButton("Close Window");
             buttonRestartSocket.addActionListener(new ActionListener() {
@@ -210,19 +218,25 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
                 }
             });
 
-            JPanel panelTop = new JPanel();
-            panelTop.setPreferredSize(new Dimension(390, 300));
-            statusLabel.setPreferredSize(new Dimension(390, 300));
-            panelTop.add(statusLabel);
             JPanel panelBottom = new JPanel();
             panelBottom.add(buttonRestartSocket);
-            frame.getContentPane().add(panelTop);
+            final JScrollPane scrollPane = new JScrollPane(logTextArea);
+            frame.getContentPane().add(scrollPane);
             frame.getContentPane().add(panelBottom);
-            frame.setPreferredSize(new Dimension(400, 400));
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setPreferredSize(new Dimension(900, 400));
+            frame.setSize(new Dimension(900, 400));
+            frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+            frame.addWindowListener(new java.awt.event.WindowAdapter() {
+                @Override
+                public void windowClosing(java.awt.event.WindowEvent e) {
+                    closeConnectWindow();
+                    e.getWindow().dispose();
+                }
+            });
         }
         startSocketThread();
         frame.setVisible(true);
+        addLogText("Listening on port 8088...");
     }
 
     protected void closeConnectWindow() {
@@ -255,7 +269,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
             while (!socketConnectionThread.server.isClosed()) {
                 socketConnectionThread.stopConnection();
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(100);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -284,6 +298,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
             }
         }
 
+
         public void run() {
             Socket socket = null;
             try {
@@ -292,51 +307,52 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
                 BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
                 while (run) {
                     switch (readInput(bwin.readLine())) {
-
                         case 1:
-                            statusLabel.setText("Starting capture command received...");
+                            addLogText("Starting capture command received...");
                             SwingUtilities.invokeAndWait(() -> captureListener.startCapture());
                             bw.write("1");
                             bw.newLine();
                             bw.flush();
                             break;
 //                        case 2:
-//                            statusLabel.setText("Toggle capture command received...");
+//                            logTextArea.setText("Toggle capture command received...");
 //                            capture = !capture;
 //                            bw.write(capture ? "Capture resumed..." : "Capture paused...");
 //                            bw.newLine();
 //                            bw.flush();
 //                            break;
                         case 3:
-                            statusLabel.setText("Stop capture command received...");
+                            addLogText("Stop capture command received...");
                             SwingUtilities.invokeAndWait(() -> captureListener.stopCapture());
                             bw.write("1");
                             bw.newLine();
                             bw.flush();
                             break;
 //                        case 4:
-//                            statusLabel.setText("Emergency snapshot triggered received...");
+//                            logTextArea.setText("Emergency snapshot triggered received...");
 //                            captureListener.startSnapshot();
 //                            bw.write("Emergency snapshot triggered...");
 //                            bw.newLine();
 //                            bw.flush();
 //                            break;
                         case 5:
+                            addLogText("Received Termination Request... Exiting...");
                             frame.setVisible(false);
                             SwingUtilities.invokeAndWait(() -> captureListener.stopCapture());
                             run = false;
                             break;
                         case 6:
+                            addLogText("Received Query Status Request.. Checking Capture status...");
                             if (isCapturing())
                             {
-                                statusLabel.setText("Return Capture status = 1");
+                                addLogText("Capture is running... Returning Capture status = 1");
                                 bw.write("1");
                                 bw.newLine();
                                 bw.flush();
                             }
                             else
                             {
-                                statusLabel.setText("Return Capture status = 0");
+                                addLogText("Capture is not running... Return Capture status = 0");
                                 bw.write("0");
                                 bw.newLine();
                                 bw.flush();
@@ -371,7 +387,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
                 return -1;
             } else {
                 try {
-                    statusLabel.setText("Received Command:"+line);
+                    addLogText("Received Command:"+line);
                     return Integer.parseInt(line);
                 } catch (Exception e) {
                     return -1;
