@@ -6,6 +6,7 @@ import de.wonderplanets.firecapture.plugin.IFilter;
 import de.wonderplanets.firecapture.plugin.IFilterListener;
 
 import javax.swing.*;
+import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -21,7 +22,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
     private boolean isCapturing;
     private JButton button;
     private JFrame frame;
-    private SocketConnection socketConnection = null;
+    private SocketConnection socketConnectionThread = null;
 
     private JLabel statusLabel;
     private JButton buttonRestartSocket;
@@ -118,8 +119,6 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
     @Override
     public void release() {
         // TODO Auto-generated method stub
-        closeConnectWindow();
-        //stopSocket();
     }
 
     @Override
@@ -203,42 +202,45 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
             statusLabel.setForeground(Color.red);
             statusLabel.setBorder(BorderFactory.createTitledBorder("Status"));
 
-            buttonRestartSocket = new JButton("Restart Winsock");
+            buttonRestartSocket = new JButton("Close Window");
             buttonRestartSocket.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e) {
-                    stopSocket();
-                    startSocket();
-                    statusLabel.setText("Winsock restarted");
+                    closeConnectWindow();
                 }
             });
 
             JPanel panelTop = new JPanel();
-            panelTop.setSize(new Dimension(390, 300));
+            panelTop.setPreferredSize(new Dimension(390, 300));
+            statusLabel.setPreferredSize(new Dimension(390, 300));
             panelTop.add(statusLabel);
             JPanel panelBottom = new JPanel();
             panelBottom.add(buttonRestartSocket);
             frame.getContentPane().add(panelTop);
             frame.getContentPane().add(panelBottom);
-            frame.setSize(new Dimension(400, 400));
+            frame.setPreferredSize(new Dimension(400, 400));
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         }
-        startSocket();
+        startSocketThread();
         frame.setVisible(true);
     }
 
     protected void closeConnectWindow() {
+
+        stopSocketThread();
         if (frame != null) {
             frame.setVisible(false);
             frame = null;
         }
     }
 
-    private void startSocket() {
+    private void startSocketThread() {
         try {
-            if (socketConnection == null) {
-                socketConnection = new SocketConnection(8088);
-                socketConnection.start();
+            if (socketConnectionThread == null) {
+                socketConnectionThread = new SocketConnection(8088);
+            }
+            if (!socketConnectionThread.isAlive()) {
+                socketConnectionThread.start();
             }
         } catch (IOException e) {
             // TODO Auto-generated catch block
@@ -246,38 +248,48 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
         }
     }
 
-    private void stopSocket()
+    private void stopSocketThread()
     {
-        if (socketConnection != null)
+        if (socketConnectionThread != null)
         {
-            socketConnection.interrupt();
-            socketConnection = null;
+            while (!socketConnectionThread.server.isClosed()) {
+                socketConnectionThread.stopConnection();
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            socketConnectionThread = null;
         }
     }
 
     class SocketConnection extends Thread {
 
         private final ServerSocket server;
+        public boolean run = true;
 
         public SocketConnection(int port) throws IOException {
             this.server = new ServerSocket(port);
+        }
+
+        public void stopConnection() {
+            this.run = false;
+            try {
+                if (server != null) {
+                    server.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         public void run() {
             Socket socket = null;
             try {
                 socket = server.accept();
-                boolean run = true;
-                // create buffered writer
                 BufferedReader bwin = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
-//                bw.write("Commands list: ");bw.newLine();
-//                bw.write("1: start capture");bw.newLine();
-//                bw.write("2: toggle capture");bw.newLine();
-//                bw.write("3: stop capture");bw.newLine();
-//                bw.write("4: trigger emergency snapshot");bw.newLine();
-//                bw.write("5: exit");bw.newLine();bw.newLine();
-//                bw.flush();
                 while (run) {
                     switch (readInput(bwin.readLine())) {
 
@@ -334,23 +346,23 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
                             break;
                     }
                 }
+
             } catch (Exception e) {
                 e.printStackTrace();
-
-                if (socket != null) {
-                    try {
-                        socket.close();
-                    } catch (IOException ioe) {
-                    }
-                    e.printStackTrace();
-                }
             } finally {
                 if (socket != null)
                     try {
                         socket.close();
+
                     } catch (IOException e) {
-                        e.printStackTrace();
+
                     }
+                if (server != null) {
+                    try {
+                        server.close();
+                    } catch (IOException e1) {
+                    }
+                }
             }
         }
 
