@@ -27,6 +27,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
 
     private JTextArea logTextArea;
     private JButton buttonRestartSocket;
+    public int nFileNameSuffix = 0;
 
     public boolean isCapturing() {
         return isCapturing;
@@ -314,13 +315,13 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
                             bw.newLine();
                             bw.flush();
                             break;
-//                        case 2:
-//                            logTextArea.setText("Toggle capture command received...");
-//                            capture = !capture;
-//                            bw.write(capture ? "Capture resumed..." : "Capture paused...");
-//                            bw.newLine();
-//                            bw.flush();
-//                            break;
+                        case 2:
+                            logTextArea.setText("Increment Suffix command received...");
+                            nFileNameSuffix++;
+                            bw.write("1");
+                            bw.newLine();
+                            bw.flush();
+                            break;
                         case 3:
                             addLogText("Stop capture command received...");
                             SwingUtilities.invokeAndWait(() -> captureListener.stopCapture());
@@ -405,7 +406,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
     @Override
     public String getFilenameAppendix() {
         // TODO Auto-generated method stub
-        return null;
+        return String.format("_seq_%03d",nFileNameSuffix);
     }
 
     @Override
