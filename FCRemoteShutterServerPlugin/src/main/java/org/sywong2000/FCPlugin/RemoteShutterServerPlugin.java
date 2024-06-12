@@ -316,7 +316,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
                             bw.flush();
                             break;
                         case 2:
-                            logTextArea.setText("Increment Suffix command received...");
+                            addLogText("Increment Suffix command received...");
                             nFileNameSuffix++;
                             bw.write("1");
                             bw.newLine();
