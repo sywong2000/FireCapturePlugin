@@ -343,7 +343,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
                             bw.flush();
                             break;
                         case 4:
-                            logTextArea.setText("Signal to get a single frame. Waiting... ");
+                            addLogText("Signal to get a single frame. Waiting... ");
                             bFrameReady = false;
                             bGetNextFrame = true;
                             while (!bFrameReady)
@@ -354,12 +354,13 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
                                     e.printStackTrace();
                                 }
                             }
-                            logTextArea.setText("Frame obtained, transmitting.... ");
+                            addLogText("Frame obtained, transmitting.... ");
                             String sData = Base64.getEncoder().encodeToString(oneFrame);
                             String sJson = "{\"width\":" + imageSize.width + ",\"height\":" + imageSize.height + ",\"data\":\"" + sData + "\"}";
                             bw.write(sJson);
                             bw.newLine();
                             bw.flush();
+                            addLogText("Frame sent.");
                             break;
                         case 5:
                             addLogText("Received Termination Request... Exiting...");
