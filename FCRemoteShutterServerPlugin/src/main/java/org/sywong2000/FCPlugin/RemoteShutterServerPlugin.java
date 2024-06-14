@@ -13,6 +13,7 @@ import java.awt.event.ActionListener;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Base64;
 import java.util.Date;
 import java.util.Properties;
 
@@ -44,8 +45,11 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
             logTextArea.setCaretPosition(logTextArea.getDocument().getLength());
         }
     }
-
-
+    private boolean bGetNextFrame = false;
+    private boolean bFrameReady = false;
+    private Rectangle imageSize = null;
+    private CamInfo caminfo = null;
+    private byte[] oneFrame = null;
 
     @Override
     public String getName() {
@@ -138,6 +142,15 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
     @Override
     public void computeMono(byte[] bytePixels, Rectangle imageSize, CamInfo info) {
         // TODO Auto-generated method stub
+
+        if (bGetNextFrame)
+        {
+            this.oneFrame = bytePixels.clone();
+            this.imageSize = imageSize;
+            this.caminfo = info;
+            bFrameReady = true;
+            bGetNextFrame = false;
+        }
     }
 
     @Override
@@ -329,13 +342,25 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
                             bw.newLine();
                             bw.flush();
                             break;
-//                        case 4:
-//                            logTextArea.setText("Emergency snapshot triggered received...");
-//                            captureListener.startSnapshot();
-//                            bw.write("Emergency snapshot triggered...");
-//                            bw.newLine();
-//                            bw.flush();
-//                            break;
+                        case 4:
+                            logTextArea.setText("Signal to get a single frame. Waiting... ");
+                            bFrameReady = false;
+                            bGetNextFrame = true;
+                            while (!bFrameReady)
+                            {
+                                try {
+                                    Thread.sleep(100);
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                            logTextArea.setText("Frame obtained, transmitting.... ");
+                            String sData = Base64.getEncoder().encodeToString(oneFrame);
+                            String sJson = "{\"width\":" + imageSize.width + ",\"height\":" + imageSize.height + ",\"data\":\"" + sData + "\"}";
+                            bw.write(sJson);
+                            bw.newLine();
+                            bw.flush();
+                            break;
                         case 5:
                             addLogText("Received Termination Request... Exiting...");
                             frame.setVisible(false);
