@@ -356,7 +356,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
                             }
                             addLogText("Frame obtained, transmitting.... ");
                             String sData = Base64.getEncoder().encodeToString(oneFrame);
-                            String sJson = "{\"width\":" + imageSize.width + ",\"height\":" + imageSize.height + ",\"data\":\"" + sData + "\"}";
+                            String sJson = "{\"width\":" + imageSize.width + ",\"height\":" + imageSize.height + ",\"caminfo\":{ \"cameraName\":\""+caminfo.cameraName.trim()+"\",\"pixelSize\":"+caminfo.pixelSize+",\"maxImageSize\":{\"width\":"+caminfo.maxImageSize.width+",\"height\":"+caminfo.maxImageSize.height+"},\"is16Bit\":"+caminfo.is16Bit+",\"isBin2\":"+caminfo.isBin2+",\"isColor\":"+caminfo.isColor+"},\"data\":\"" + sData + "\"}";
                             bw.write(sJson);
                             bw.newLine();
                             bw.flush();
