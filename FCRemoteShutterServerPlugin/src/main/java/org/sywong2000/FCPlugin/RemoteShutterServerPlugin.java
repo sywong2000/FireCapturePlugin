@@ -237,8 +237,8 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
             final JScrollPane scrollPane = new JScrollPane(logTextArea);
             frame.getContentPane().add(scrollPane);
             frame.getContentPane().add(panelBottom);
-            frame.setPreferredSize(new Dimension(900, 400));
-            frame.setSize(new Dimension(900, 400));
+            frame.setPreferredSize(new Dimension(900, 500));
+            frame.setSize(new Dimension(900, 500));
             frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
             frame.addWindowListener(new java.awt.event.WindowAdapter() {
                 @Override
