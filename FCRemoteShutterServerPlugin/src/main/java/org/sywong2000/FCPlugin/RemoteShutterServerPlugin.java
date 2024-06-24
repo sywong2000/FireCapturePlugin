@@ -16,6 +16,7 @@ import java.net.Socket;
 import java.util.Base64;
 import java.util.Date;
 import java.util.Properties;
+import java.util.zip.*;
 
 public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter {
 
@@ -354,8 +355,19 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
                                     e.printStackTrace();
                                 }
                             }
+
+                            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                            ByteArrayInputStream bais = new ByteArrayInputStream(oneFrame);
+                            GZIPOutputStream gzipOs = new GZIPOutputStream(baos);
+                            byte[] buffer = new byte[4096];
+                            int bytesRead = 0;
+                            while ((bytesRead = bais.read(buffer)) > -1) {
+                                gzipOs.write(buffer, 0, bytesRead);
+                            }
+                            gzipOs.close();
+
                             addLogText("Frame obtained, transmitting.... ");
-                            String sData = Base64.getEncoder().encodeToString(oneFrame);
+                            String sData = Base64.getEncoder().encodeToString(baos.toByteArray());
                             String sJson = "{\"width\":" + imageSize.width + ",\"height\":" + imageSize.height + ",\"caminfo\":{ \"cameraName\":\""+caminfo.cameraName.trim()+"\",\"pixelSize\":"+caminfo.pixelSize+",\"maxImageSize\":{\"width\":"+caminfo.maxImageSize.width+",\"height\":"+caminfo.maxImageSize.height+"},\"is16Bit\":"+caminfo.is16Bit+",\"isBin2\":"+caminfo.isBin2+",\"isColor\":"+caminfo.isColor+"},\"data\":\"" + sData + "\"}";
                             bw.write(sJson);
                             bw.newLine();
