@@ -29,6 +29,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
 
     private JTextArea logTextArea;
     private JButton buttonRestartSocket;
+    private JButton buttonCloseWindow;
     public int nFileNameSuffix = 0;
 
     public boolean isCapturing() {
@@ -225,8 +226,17 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
             logTextArea.setLineWrap(true);
             logTextArea.setWrapStyleWord(true);
 
-            buttonRestartSocket = new JButton("Close Window");
+            buttonRestartSocket = new JButton("Restart Window");
             buttonRestartSocket.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    closeConnectWindow();
+                    openConnectWindow();
+                }
+            });
+
+            buttonCloseWindow = new JButton("Close Window");
+            buttonCloseWindow.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e) {
                     closeConnectWindow();
@@ -235,6 +245,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
 
             JPanel panelBottom = new JPanel();
             panelBottom.add(buttonRestartSocket);
+            panelBottom.add(buttonCloseWindow);
             final JScrollPane scrollPane = new JScrollPane(logTextArea);
             frame.getContentPane().add(scrollPane);
             frame.getContentPane().add(panelBottom);
@@ -359,7 +370,7 @@ public class RemoteShutterServerPlugin extends AbstractPlugin implements IFilter
                             ByteArrayOutputStream baos = new ByteArrayOutputStream();
                             ByteArrayInputStream bais = new ByteArrayInputStream(oneFrame);
                             GZIPOutputStream gzipOs = new GZIPOutputStream(baos);
-                            byte[] buffer = new byte[4096];
+                            byte[] buffer = new byte[8192];
                             int bytesRead = 0;
                             while ((bytesRead = bais.read(buffer)) > -1) {
                                 gzipOs.write(buffer, 0, bytesRead);
